@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "args": [
+                "--config", "config/glor_config.yaml",
+                
+            ],
+            "env": {
+                "PYTHONPATH": "/media/volume/moein-storage-1/ddpm_ocean/src"
+            }
+        }
+    ]
+}
