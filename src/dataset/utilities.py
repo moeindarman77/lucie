@@ -2043,13 +2043,17 @@ def spectral_sqr_abs2(
             target2lon_c = target2lon[:, c, :, :]
 
             # Compute FFT along latitude (dimension 1 after channel selection)
-            out_fft_lat = torch.abs(torch.fft.rfft(output2lat_c, dim=1))[:, wavenum_init_lat:, :]
-            target_fft_lat = torch.abs(torch.fft.rfft(target2lat_c, dim=1))[:, wavenum_init_lat:, :]
+            # out_fft_lat = torch.abs(torch.fft.rfft(output2lat_c, dim=1))[:, wavenum_init_lat:, :]
+            # target_fft_lat = torch.abs(torch.fft.rfft(target2lat_c, dim=1))[:, wavenum_init_lat:, :]
+            out_fft_lat = torch.abs(torch.fft.rfft(output_c, dim=1))[:, wavenum_init_lat:, :]
+            target_fft_lat = torch.abs(torch.fft.rfft(target_c, dim=1))[:, wavenum_init_lat:, :]
             loss_fft_lat = torch.mean((out_fft_lat - target_fft_lat) ** 2)
 
             # Compute FFT along longitude (dimension 2 after channel selection)
-            out_fft_lon = torch.abs(torch.fft.rfft(output2lon_c, dim=2))[:, :, wavenum_init_lon:]
-            target_fft_lon = torch.abs(torch.fft.rfft(target2lon_c, dim=2))[:, :, wavenum_init_lon:]
+            # out_fft_lon = torch.abs(torch.fft.rfft(output2lon_c, dim=2))[:, :, wavenum_init_lon:]
+            # target_fft_lon = torch.abs(torch.fft.rfft(target2lon_c, dim=2))[:, :, wavenum_init_lon:]
+            out_fft_lon = torch.abs(torch.fft.rfft(output_c, dim=2))[:, :, wavenum_init_lon:]
+            target_fft_lon = torch.abs(torch.fft.rfft(target_c, dim=2))[:, :, wavenum_init_lon:]
             loss_fft_lon = torch.mean((out_fft_lon - target_fft_lon) ** 2)
 
             # Accumulate weighted spectral loss
