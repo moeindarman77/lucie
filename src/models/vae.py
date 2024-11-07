@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 from models.blocks import DownBlock, MidBlock, UpBlock
+from models.upsamplingCNN import UpsamplingCNN
 import torch.nn.functional as F
 
 
 class VAE(nn.Module):
-    def __init__(self, im_channels, model_config):
+    def __init__(self, input_channels, output_channels, model_config):
         super().__init__()
         self.down_channels = model_config['down_channels']
         self.mid_channels = model_config['mid_channels']
@@ -22,6 +23,7 @@ class VAE(nn.Module):
         self.norm_channels = model_config['norm_channels']
         self.num_heads = model_config['num_heads']
 
+        self.upsampling_cnn = UpsamplingCNN(input_channels)
         # Dynamic determination of decoder_concat_channels
         self.decoder_concat_channels = self.down_channels[-1]
         
@@ -36,7 +38,7 @@ class VAE(nn.Module):
         self.up_sample = list(reversed(self.down_sample))
         
         ##################### Encoder ######################
-        self.encoder_conv_in = nn.Conv2d(im_channels, self.down_channels[0], kernel_size=3, padding=(1, 1))
+        self.encoder_conv_in = nn.Conv2d(input_channels, self.down_channels[0], kernel_size=3, padding=(1, 1))
         
         # Downblock + Midblock
         self.encoder_layers = nn.ModuleList([])
@@ -65,7 +67,8 @@ class VAE(nn.Module):
         
         
         ##################### Decoder ######################
-        self.post_quant_conv = nn.Conv2d(self.z_channels + self.decoder_concat_channels, self.z_channels, kernel_size=1)
+        # self.post_quant_conv = nn.Conv2d(self.z_channels + self.decoder_concat_channels, self.z_channels, kernel_size=1)
+        self.post_quant_conv = nn.Conv2d(self.z_channels, self.z_channels, kernel_size=1)
         self.decoder_conv_in = nn.Conv2d(self.z_channels, self.mid_channels[-1], kernel_size=3, padding=(1, 1))
         
         # Midblock + Upblock
@@ -87,7 +90,7 @@ class VAE(nn.Module):
                                                norm_channels=self.norm_channels))
         
         self.decoder_norm_out = nn.GroupNorm(self.norm_channels, self.down_channels[0])
-        self.decoder_conv_out = nn.Conv2d(self.down_channels[0], im_channels, kernel_size=3, padding=1)
+        self.decoder_conv_out = nn.Conv2d(self.down_channels[0], output_channels, kernel_size=3, padding=1)
     
     def encode(self, x):
         out = self.encoder_conv_in(x)
@@ -111,8 +114,9 @@ class VAE(nn.Module):
     
     def decode(self, z, x):
         # Concatenate along the second dimension (dim=1), i.e., after the batch size dimension
-        out = torch.cat((z, x), dim=1)
-        out = self.post_quant_conv(out)
+        # out = torch.cat((z, x), dim=1)
+        # out = self.post_quant_conv(out)
+        out = self.post_quant_conv(z)
         out = self.decoder_conv_in(out)
         for mid in self.decoder_mids:
             out = mid(out)
@@ -126,10 +130,7 @@ class VAE(nn.Module):
         return reconstructed_image
 
     def forward(self, x):
-        # I am hardcoding padding and un_padding here
-        x = F.pad(x, (0, 3, 1, 1), mode='constant', value=0)
-        latent_sample, latent_distribution, encoded_features = self.encode(x)
+        x_upsampled = self.upsampling_cnn(x)
+        latent_sample, latent_distribution, encoded_features = self.encode(x_upsampled)
         reconstructed_output = self.decode(latent_sample, encoded_features)
-        # In order to remove the hardcoding of padding and un_padding, Just remove the first and last line of the forward function
-        reconstructed_output = reconstructed_output[..., 1:-1, :-3]
         return reconstructed_output, latent_distribution
