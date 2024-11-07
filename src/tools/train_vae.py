@@ -1,4 +1,5 @@
 import yaml
+from torch.nn import DataParallel
 import argparse
 import torch
 import random
@@ -12,6 +13,7 @@ from torch.utils.data.dataloader import DataLoader
 from torch.optim import Adam
 from torch.optim.lr_scheduler import StepLR
 from dataset.utilities import GlorysRomsDataset, spectral_sqr_abs2
+from dataset.ClimateDataset import ClimateDataset
 import torch.nn.functional as F
 import logging
 
@@ -73,17 +75,44 @@ def train(args):
     #############################
     
     # Create the model and dataset #
-    model = VAE(im_channels=dataset_config['im_channels'],
-                  model_config=autoencoder_config).to(device)
+    model = VAE(input_channels=dataset_config['input_channels'],
+                output_channels=dataset_config['output_channels'],
+                model_config=autoencoder_config)
+    model = DataParallel(model)
+    model = model.to(device)
     logging.info("Model instantiated.")
 
-    # Create dataset instance
-    dataset = GlorysRomsDataset(steps=range(dataset_config['num_train_data']),
-                                 channels=["SSU", "SSV", "SSH",], 
-                                 added_channels=[], 
-                                 data_dir=dataset_config["data_dir"],
-                                 lat_lon_keep= tuple(dataset_config["lat_lon_keep"]), 
-                                 interpolator_use="scipy", )
+    # Create dataset instance    
+    input_vars = ['Temperature_7', 'Specific_Humidity_7', 'U-wind_3', 'V-wind_3', 'logp', 'tp6hr']
+    output_vars = ['2m_temperature', 'tp6hr']
+    lr_lats = [87.159, 83.479, 79.777, 76.070, 72.362, 68.652, 64.942, 61.232, 
+           57.521, 53.810, 50.099, 46.389, 42.678, 38.967, 35.256, 31.545, 
+           27.833, 24.122, 20.411, 16.700, 12.989, 9.278, 5.567, 1.856, 
+           -1.856, -5.567, -9.278, -12.989, -16.700, -20.411, -24.122, 
+           -27.833, -31.545, -35.256, -38.967, -42.678, -46.389, -50.099, 
+           -53.810, -57.521, -61.232, -64.942, -68.652, -72.362, -76.070, 
+           -79.777, -83.479, -87.159]
+
+    lr_lons = [0.0, 3.75, 7.5, 11.25, 15.0, 18.75, 22.5, 26.25, 30.0, 33.75,
+           37.5, 41.25, 45.0, 48.75, 52.5, 56.25, 60.0, 63.75, 67.5, 71.25,
+           75.0, 78.75, 82.5, 86.25, 90.0, 93.75, 97.5, 101.25, 105.0, 108.75,
+           112.5, 116.25, 120.0, 123.75, 127.5, 131.25, 135.0, 138.75, 142.5, 146.25,
+           150.0, 153.75, 157.5, 161.25, 165.0, 168.75, 172.5, 176.25, 180.0, 183.75,
+           187.5, 191.25, 195.0, 198.75, 202.5, 206.25, 210.0, 213.75, 217.5, 221.25,
+           225.0, 228.75, 232.5, 236.25, 240.0, 243.75, 247.5, 251.25, 255.0, 258.75,
+           262.5, 266.25, 270.0, 273.75, 277.5, 281.25, 285.0, 288.75, 292.5, 296.25,
+           300.0, 303.75, 307.5, 311.25, 315.0, 318.75, 322.5, 326.25, 330.0, 333.75,
+           337.5, 341.25, 345.0, 348.75, 352.5, 356.25]
+    dataset = ClimateDataset(input_dir_lr=dataset_config['input_data_dir'], 
+                             input_dir_hr=dataset_config['output_data_dir'], 
+                             input_vars=input_vars, 
+                             output_vars=output_vars, 
+                             lr_lats=lr_lats, 
+                             lr_lons=lr_lons,
+                             year_range=(dataset_config['year_range_start'], dataset_config['year_range_end']),
+                             normalize=True, 
+                             input_normalization_file=dataset_config['input_normalization_dir'], 
+                             output_normalization_file=dataset_config['output_normalization_dir']) 
     logging.info("Dataset loaded.")
 
     # Create DataLoader
@@ -107,7 +136,12 @@ def train(args):
     # Disc Loss can be BCEWithLogitsLoss or MSELoss
     disc_criterion = torch.nn.MSELoss()
     
-    discriminator = Discriminator(im_channels=dataset_config['im_channels']).to(device)
+    # discriminator = Discriminator(im_channels=dataset_config['output_channels']).to(device)
+
+    discriminator = Discriminator(im_channels=dataset_config['output_channels'])
+    discriminator = DataParallel(discriminator)
+    discriminator = discriminator.to(device)
+
     
     # After optimizer definitions
     optimizer_g = Adam(model.parameters(), lr=train_config['autoencoder_lr'], betas=(0.5, 0.999))
@@ -178,10 +212,10 @@ def train(args):
 
         for batch_idx, data in enumerate(tqdm(data_loader)):
             step_count += 1
-            lres, hres = data
+            lres, hres = data['input'], data['output']
             lres = lres.float().to(device)
             hres = hres.float().to(device)
-
+            
             # Fetch autoencoders output(reconstructions)
             model_output = model(lres)
             output, latent_distribution = model_output # For VAE,    
@@ -189,7 +223,8 @@ def train(args):
             
             ######### Optimize Generator ##########
             # 'L2 Loss + spectral loss'
-            recon_loss = spectral_sqr_abs2(output, hres) # recon_loss = recon_criterion(output, hres) 
+            recon_loss = spectral_sqr_abs2(output, hres[...,:-1,:]) # recon_loss = recon_criterion(output, hres) 
+            # recon_loss = recon_criterion(output, hres[...,:-1,:])
             recon_losses.append(recon_loss.item())
 
             # recon_loss = recon_loss / accumulation_steps
