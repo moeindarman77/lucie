@@ -12,7 +12,7 @@ from models.discriminator import Discriminator
 from torch.utils.data.dataloader import DataLoader
 from torch.optim import Adam
 from torch.optim.lr_scheduler import StepLR
-from dataset.utilities import GlorysRomsDataset, spectral_sqr_abs2
+from utils.spectral_sqr_abs2 import spectral_sqr_abs2
 from dataset.ClimateDataset import ClimateDataset
 import torch.nn.functional as F
 import logging
@@ -215,15 +215,20 @@ def train(args):
             lres, hres = data['input'], data['output']
             lres = lres.float().to(device)
             hres = hres.float().to(device)
+            # Print if there's any nan
+            # if torch.isnan(lres).any() or torch.isnan(hres).any():
+            #     print("Nan in input or output")
+            #     continue
             
             # Fetch autoencoders output(reconstructions)
             model_output = model(lres)
-            output, latent_distribution = model_output # For VAE,    
+            output, latent_distribution = model_output # For VAE,   
+            output = output[:, :, :-7, :] 
              # latent_distribution is in the shape of [batch_size, 2, padded_lres//2^(N_downsampling_layers), padded_lres//2^(N_downsampling_layers)]                            
             
             ######### Optimize Generator ##########
             # 'L2 Loss + spectral loss'
-            recon_loss = spectral_sqr_abs2(output, hres[...,:-1,:]) # recon_loss = recon_criterion(output, hres) 
+            recon_loss = spectral_sqr_abs2(output, hres, lambda_fft=train_config['lambda_fft']) # recon_loss = recon_criterion(output, hres) 
             # recon_loss = recon_criterion(output, hres[...,:-1,:])
             recon_losses.append(recon_loss.item())
 
