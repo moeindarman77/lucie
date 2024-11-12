@@ -67,8 +67,8 @@ class VAE(nn.Module):
         
         
         ##################### Decoder ######################
-        # self.post_quant_conv = nn.Conv2d(self.z_channels + self.decoder_concat_channels, self.z_channels, kernel_size=1)
-        self.post_quant_conv = nn.Conv2d(self.z_channels, self.z_channels, kernel_size=1)
+        self.post_quant_conv = nn.Conv2d(self.z_channels + self.decoder_concat_channels, self.z_channels, kernel_size=1)
+        # self.post_quant_conv = nn.Conv2d(self.z_channels, self.z_channels, kernel_size=1)
         self.decoder_conv_in = nn.Conv2d(self.z_channels, self.mid_channels[-1], kernel_size=3, padding=(1, 1))
         
         # Midblock + Upblock
@@ -114,9 +114,9 @@ class VAE(nn.Module):
     
     def decode(self, z, x):
         # Concatenate along the second dimension (dim=1), i.e., after the batch size dimension
-        # out = torch.cat((z, x), dim=1)
-        # out = self.post_quant_conv(out)
-        out = self.post_quant_conv(z)
+        out = torch.cat((z, x), dim=1)
+        out = self.post_quant_conv(out)
+        # out = self.post_quant_conv(z)
         out = self.decoder_conv_in(out)
         for mid in self.decoder_mids:
             out = mid(out)
@@ -130,7 +130,9 @@ class VAE(nn.Module):
         return reconstructed_image
 
     def forward(self, x):
-        x_upsampled = self.upsampling_cnn(x)
+        x_upsampled = F.interpolate(x, size=(721,1440), mode='bilinear', align_corners=True)
+        # Pad the input to 728x1440
+        x_upsampled = F.pad(x_upsampled, (0, 0, 0, 7), mode='constant', value=0)
         latent_sample, latent_distribution, encoded_features = self.encode(x_upsampled)
         reconstructed_output = self.decode(latent_sample, encoded_features)
         return reconstructed_output, latent_distribution
