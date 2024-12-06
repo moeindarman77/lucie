@@ -1,9 +1,9 @@
 dataset_params:
-  input_data_dir: '/media/volume/era5_volume_moein/ERA5_t30/train'
-  output_data_dir: '/media/volume/era5_volume_moein/ERA5_hr'
+  input_data_dir: '/glade/derecho/scratch/asheshc/ERA5_t30/train'
+  output_data_dir: '/glade/derecho/scratch/asheshc/ERA5_hr'
   normalize: True
-  input_normalization_dir: '/media/volume/moein-storage-1/lucie/stats_2000_2010_lr.npz'
-  output_normalization_dir: '/media/volume/moein-storage-1/lucie/stats_2000_2010_hr.npz'
+  input_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_2000_2010_lr.npz'
+  output_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_2000_2010_hr.npz'
   year_range_start: 2000
   year_range_end: 2009
   num_train_data: 9131 # 9131 for 25 years 
@@ -65,19 +65,19 @@ autoencoder_params:
 train_params:
   # General training settings
   seed: 1111  # Random seed for reproducibility
-  task_name: 'test_era5'  # Name of the current training task
-  results_dir: '/media/volume/moein-storage-1/lucie/results'  # Directory to save results: task_dir = os.path.join(results_dir, train_config['task_name'])
-  load_dir: '/media/volume/moein-storage-1/lucie/results'  # Directory to load results from
+  task_name: 'era5_v0'  # Name of the current training task
+  results_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to save results: task_dir = os.path.join(results_dir, train_config['task_name'])
+  load_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to load results from
   load_from_checkpoint: False  # Whether to load the model from a previous checkpoint
   vae_autoencoder_resume_ckpt_path: '/media/volume/moein-storage-1/lucie/results/test_era5/vae_autoencoder_ckpt.pth'  # Path to the model checkpoint
   vae_discriminator_resume_ckpt_path: '/media/volume/moein-storage-1/lucie/results/test_era5/checkpoints/vae_discriminator_ckpt.pth'  # Path to the model checkpoint
 
   # Batch sizes and memory-related configurations
   ldm_batch_size: 16  # Batch size for latent diffusion model (LDM) training
-  autoencoder_batch_size: 2  # Batch size for autoencoder training (limited by GPU capacity)
+  autoencoder_batch_size: 8  # Batch size for autoencoder training (limited by GPU capacity: for Derecho 2 per GPU)
   
   # Discriminator settings
-  disc_start: 0  # Epoch to start training the discriminator
+  disc_start: 10  # Epoch to start training the discriminator
   disc_weight: 0.5  # Weight for discriminator loss
 
   # KL divergence annealing
@@ -93,7 +93,7 @@ train_params:
 
   # Training duration
   ldm_epochs: 100  # Number of epochs for training the latent diffusion model (LDM)
-  autoencoder_epochs: 10  # Number of epochs for training the autoencoder
+  autoencoder_epochs: 100  # Number of epochs for training the autoencoder
 
   # Sampling settings
   num_samples: 100  # Number of samples to generate during evaluation
@@ -115,7 +115,7 @@ train_params:
 
   # Checkpoint and saving settings
   ldm_save_interval: 10  # Interval (in epochs) to save LDM checkpoints
-  checkpoint_interval: 10  # Interval (in epochs) to save model checkpoints
+  checkpoint_interval: 5  # Interval (in epochs) to save model checkpoints
   save_latents: False  # Whether to save latent representations during training
   load_latents: False  # Whether to load latent representations during training
 
