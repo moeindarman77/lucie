@@ -75,7 +75,7 @@ def train(args):
     #############################
     
     # Create the model and dataset #
-    model = VAE(input_channels=dataset_config['input_channels'],
+    model = VAE(input_channels=dataset_config['input_channels']+dataset_config['land_sea_mask'],
                 output_channels=dataset_config['output_channels'],
                 model_config=autoencoder_config)
     model = DataParallel(model)
@@ -113,6 +113,10 @@ def train(args):
                              normalize=True, 
                              input_normalization_file=dataset_config['input_normalization_dir'], 
                              output_normalization_file=dataset_config['output_normalization_dir']) 
+    if dataset_config['land_sea_mask'] == 1:
+        lsm = torch.tensor(np.load(dataset_config['land_sea_mask_dir'])['land_sea_mask']).unsqueeze(0).unsqueeze(1)
+    else:
+        lsm = None
     logging.info("Dataset loaded.")
 
     # Create DataLoader
@@ -215,13 +219,12 @@ def train(args):
             lres, hres = data['input'], data['output']
             lres = lres.float().to(device)
             hres = hres.float().to(device)
-            # Print if there's any nan
-            # if torch.isnan(lres).any() or torch.isnan(hres).any():
-            #     print("Nan in input or output")
-            #     continue
+            lsm_expanded = None
+            if lsm is not None:
+                lsm = lsm.float().to(device)
+                lsm_expanded = lsm.expand(lres.shape[0], -1, -1, -1)  # Shape: (batch_size, 1, 721, 1440)
             
-            # Fetch autoencoders output(reconstructions)
-            model_output = model(lres)
+            model_output = model(lres, lsm=lsm_expanded)
             output, latent_distribution = model_output # For VAE,   
             output = output[:, :, :-7, :] 
              # latent_distribution is in the shape of [batch_size, 2, padded_lres//2^(N_downsampling_layers), padded_lres//2^(N_downsampling_layers)]                            
@@ -229,7 +232,6 @@ def train(args):
             ######### Optimize Generator ##########
             # 'L2 Loss + spectral loss'
             recon_loss = spectral_sqr_abs2(output, hres, lambda_fft=train_config['lambda_fft']) # recon_loss = recon_criterion(output, hres) 
-            # recon_loss = recon_criterion(output, hres[...,:-1,:])
             recon_losses.append(recon_loss.item())
 
             # recon_loss = recon_loss / accumulation_steps
