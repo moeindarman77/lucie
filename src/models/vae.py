@@ -129,8 +129,10 @@ class VAE(nn.Module):
         reconstructed_image = out
         return reconstructed_image
 
-    def forward(self, x):
+    def forward(self, x, lsm=None):
         x_upsampled = F.interpolate(x, size=(721,1440), mode='bilinear', align_corners=True)
+        if lsm is not None:
+            x_upsampled = torch.cat([x_upsampled, lsm], dim=1)  # Shape: (batch_size, input_channel+1, 721, 1440)
         # Pad the input to 728x1440
         x_upsampled = F.pad(x_upsampled, (0, 0, 0, 7), mode='constant', value=0)
         latent_sample, latent_distribution, encoded_features = self.encode(x_upsampled)
