@@ -32,8 +32,8 @@ class ClimateDataset(Dataset):
         self.lr_files_six_hourly = self.lr_files[::6]
 
         # Use limited data for debugging
-        # self.hr_files = self.hr_files[:512]
-        # self.lr_files_six_hourly = self.lr_files_six_hourly[:512]
+        # self.hr_files = self.hr_files[:64]
+        # self.lr_files_six_hourly = self.lr_files_six_hourly[:64]
 
         assert len(self.hr_files) == len(self.lr_files_six_hourly), \
             "Mismatch between high-resolution and low-resolution timesteps."
