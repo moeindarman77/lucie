@@ -224,9 +224,9 @@ def train(args):
                 lsm = lsm.float().to(device)
                 lsm_expanded = lsm.expand(lres.shape[0], -1, -1, -1)  # Shape: (batch_size, 1, 721, 1440)
             
-            model_output = model(lres, lsm=lsm_expanded)
+            model_output = model(x=lres, lsm=lsm_expanded)
             output, latent_distribution = model_output # For VAE,   
-            output = output[:, :, :-7, :] 
+            output = output[:, :, :-7, :]
              # latent_distribution is in the shape of [batch_size, 2, padded_lres//2^(N_downsampling_layers), padded_lres//2^(N_downsampling_layers)]                            
             
             ######### Optimize Generator ##########
