@@ -96,29 +96,46 @@ def infer(args):
     model = model.to(device)
 
     # load_dir = os.path.join(task_dir, train_config['vae_autoencoder_ckpt_name'])
-    load_dir = '/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v0/checkpoints/vae_autoencoder_ckpt_epoch_40.pth'
+    # load_dir = '/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v0/checkpoints/vae_autoencoder_ckpt_epoch_40.pth'
+    load_dir = '/media/volume/moein-storage-1/lucie/results/vae_concat_v1/checkpoints/latest_autoencoder.pth'
+    
+
     model.load_state_dict(torch.load(load_dir, map_location=device, weights_only=True)['model_state_dict'])
     model.eval()
     step = 0
     with torch.no_grad():
         for data in data_loader:
             step += 1
-            lres, hres = data['lucie'], data['output']
+            lucie, lres, hres = data['lucie'], data['input'], data['output']
+            lucie = lucie.float().to(device)
             lres = lres.float().to(device)
             hres = hres.float().to(device)
                         
             decoded_output, _ = model(lres)
             decoded_output = decoded_output[:, :, :-7, :] 
 
+            lucie_zero_shot, _ = model(lucie)
+            lucie_zero_shot = lucie_zero_shot[:, :, :-7, :]
+
             # Convert tensors to numpy arrays
             lres_interp_numpy = F.interpolate(lres, size=(721,1440), mode='bilinear', align_corners=True).cpu().numpy()
+            lucie_interp_numpy = F.interpolate(lucie, size=(721,1440), mode='bilinear', align_corners=True).cpu().numpy()
+            lucie_numpy = lucie.cpu().numpy()
             lres_numpy = lres.cpu().numpy()            # Shape: [batch_size, channels, height, width]
             hres_numpy = hres.cpu().numpy()            # Shape: [batch_size, channels, height, width]
+            lucie_zero_shot = lucie_zero_shot.cpu().numpy()
             decoded_outputs_numpy = decoded_output.cpu().numpy()   # Shape: [num_samples, batch_size, channels, height, width]
 
             # Save to an npz file named with the index of the data loader
             save_dir = os.path.join(task_dir,'samples', f'{step}.npz')
-            np.savez(save_dir, lres=lres_numpy, lres_interp=lres_interp_numpy, hres=hres_numpy, output=decoded_outputs_numpy)
+            np.savez(save_dir, 
+                     lres=lres_numpy, 
+                     lres_interp=lres_interp_numpy, 
+                     hres=hres_numpy, 
+                     output=decoded_outputs_numpy, 
+                     lucie=lucie_numpy,
+                     lucie_interp=lucie_interp_numpy, 
+                     lucie_zero_shot=lucie_zero_shot)
             print(f'Saved {step}.npz')
   
         # if train_config['save_latents']:
