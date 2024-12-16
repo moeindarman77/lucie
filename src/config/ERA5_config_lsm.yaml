@@ -1,11 +1,11 @@
 dataset_params:
-  input_data_dir: '/glade/derecho/scratch/asheshc/ERA5_t30/val'
+  input_data_dir: '/glade/derecho/scratch/asheshc/ERA5_t30/train'
   output_data_dir: '/glade/derecho/scratch/asheshc/ERA5_hr'
   normalize: True
   input_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_2000_2003_lr.npz'
   output_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_2000_2003_hr.npz'
-  year_range_start: 2010
-  year_range_end: 2010
+  year_range_start: 2000
+  year_range_end: 2009
   num_train_data: 9131 # 9131 for 25 years 
   total_data: 10922 # 10922 for 31 years
   test_data_beg: 9131 #range(9130, 10226) is from 25 to 28 years
@@ -67,7 +67,7 @@ autoencoder_params:
 train_params:
   # General training settings
   seed: 1111  # Random seed for reproducibility
-  task_name: 'vae_concat_lsm'  # Name of the current training task
+  task_name: 'vae_concat_v1'  # Name of the current training task
   results_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to save results: task_dir = os.path.join(results_dir, train_config['task_name'])
   load_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to load results from
   load_from_checkpoint: False  # Whether to load the model from a previous checkpoint
@@ -76,7 +76,7 @@ train_params:
 
   # Batch sizes and memory-related configurations
   ldm_batch_size: 16  # Batch size for latent diffusion model (LDM) training
-  autoencoder_batch_size: 2  # Batch size for autoencoder training (limited by GPU capacity: for Derecho 2 per GPU)
+  autoencoder_batch_size: 8  # Batch size for autoencoder training (limited by GPU capacity: for Derecho 2 per GPU)
   
   # Discriminator settings
   disc_start: 10  # Epoch to start training the discriminator
