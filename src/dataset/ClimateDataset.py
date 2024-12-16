@@ -99,7 +99,7 @@ class ClimateDataset(Dataset):
 
         if "tp6hr" in hr_data:
             # print(((hr_data["tp6hr"] + 1e-8)<0).any(), hr_data["tp6hr"].min())
-            hr_data["tp6hr"] = np.log(hr_data["tp6hr"] + 1e-6)  # Adding a small constant to avoid log(0)
+            hr_data["tp6hr"] = np.log(hr_data["tp6hr"] + 1e-3)  # Adding a small constant to avoid log(0)
 
         # Normalize HR data if needed
         if self.normalize:
@@ -114,7 +114,7 @@ class ClimateDataset(Dataset):
         # Apply logarithmic transformation to input variable "tp6hr" if present
         if "tp6hr" in lr_data:
             # print(((lr_data["tp6hr"] + 1e-8)<0).any(), lr_data["tp6hr"].min())
-            lr_data["tp6hr"] = np.log(lr_data["tp6hr"] + 1e-6)  # Adding a small constant to avoid log(0)
+            lr_data["tp6hr"] = np.log(lr_data["tp6hr"] + 1e-3)  # Adding a small constant to avoid log(0)
         
         # Normalize LR data if needed
         if self.normalize:
