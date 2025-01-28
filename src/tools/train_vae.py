@@ -119,7 +119,7 @@ def train(args):
         lsm = None
     logging.info("Dataset loaded.")
 
-    # Create DataLoader
+    # Create DataLoaders
     data_loader = DataLoader(dataset, 
                              batch_size=train_config['autoencoder_batch_size'], #GPU can't take more than 8
                              shuffle=True, 
@@ -219,14 +219,22 @@ def train(args):
             lres, hres = data['input'], data['output']
             lres = lres.float().to(device)
             hres = hres.float().to(device)
+            
             lsm_expanded = None
             if lsm is not None:
                 lsm = lsm.float().to(device)
                 lsm_expanded = lsm.expand(lres.shape[0], -1, -1, -1)  # Shape: (batch_size, 1, 721, 1440)
             
-            model_output = model(x=lres, lsm=lsm_expanded)
+            lres_upsampled = F.interpolate(lres, size=(721,1440), mode='bilinear', align_corners=True)
+
+            model_output = model(x=lres_upsampled, lsm=lsm_expanded)
             output, latent_distribution = model_output # For VAE,   
-            output = output[:, :, :-7, :]
+            
+            # Adjusting output
+            output = output[:,:,3:3+721,:]
+            output[:, 0] += lres_upsampled[:, 0] 
+            output[:, -1] += lres_upsampled[:, -1]
+            
              # latent_distribution is in the shape of [batch_size, 2, padded_lres//2^(N_downsampling_layers), padded_lres//2^(N_downsampling_layers)]                            
             
             ######### Optimize Generator ##########
