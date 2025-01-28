@@ -65,7 +65,7 @@ autoencoder_params:
 train_params:
   # General training settings
   seed: 1111  # Random seed for reproducibility
-  task_name: 'era5_v0'  # Name of the current training task
+  task_name: 'era5_v1'  # Name of the current training task
   results_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to save results: task_dir = os.path.join(results_dir, train_config['task_name'])
   load_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to load results from
   load_from_checkpoint: False  # Whether to load the model from a previous checkpoint
