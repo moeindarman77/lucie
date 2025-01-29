@@ -6,7 +6,7 @@ import random
 import os
 import numpy as np
 from tqdm import tqdm
-from models.vae import VAE
+from models.ae import VAE
 from models.lpips import LPIPS
 from models.discriminator import Discriminator
 from torch.utils.data.dataloader import DataLoader

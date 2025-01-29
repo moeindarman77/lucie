@@ -62,8 +62,8 @@ class VAE(nn.Module):
         self.encoder_norm_out = nn.GroupNorm(self.norm_channels, self.down_channels[-1])
         self.encoder_conv_out = nn.Conv2d(self.down_channels[-1], 2*self.z_channels, kernel_size=3, padding=1)
         
-        # Latent Dimension is 2*Latent because we are predicting mean & variance
-        self.pre_quant_conv = nn.Conv2d(2*self.z_channels, 2*self.z_channels, kernel_size=1)
+        # Latent Dimension  (Note the difference from VAE, which I used 2*self.z_channels, is Latent because we are predicting mean & variance)
+        self.pre_quant_conv = nn.Conv2d(2*self.z_channels, self.z_channels, kernel_size=1)
         ####################################################
         
         
@@ -142,6 +142,6 @@ class VAE(nn.Module):
         # x_upsampled = torch.cat([x_upsampled, x_upsampled[..., 1:8, :]], dim=-2)  
         # x_upsampled = F.pad(x_upsampled, (0, 0, 0, 7), mode='constant', value=0)
 
-        latent_sample, latent_distribution, encoded_features = self.encode(x_upsampled)
-        reconstructed_output = self.decode(latent_sample, encoded_features)
+        _, latent_distribution, encoded_features = self.encode(x_upsampled)
+        reconstructed_output = self.decode(latent_distribution, encoded_features)
         return reconstructed_output, latent_distribution

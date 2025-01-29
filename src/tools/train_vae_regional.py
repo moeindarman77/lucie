@@ -6,7 +6,7 @@ import random
 import os
 import numpy as np
 from tqdm import tqdm
-from models.vae import VAE
+from models.vae_regional import VAE
 from models.lpips import LPIPS
 from models.discriminator import Discriminator
 from torch.utils.data.dataloader import DataLoader
@@ -119,7 +119,7 @@ def train(args):
         lsm = None
     logging.info("Dataset loaded.")
 
-    # Create DataLoaders
+    # Create DataLoader
     data_loader = DataLoader(dataset, 
                              batch_size=train_config['autoencoder_batch_size'], #GPU can't take more than 8
                              shuffle=True, 
@@ -200,6 +200,16 @@ def train(args):
     
     logging.info("Starting training loop.")
 
+    # us_lat_indices_hres = torch.tensor(list(range(720 - 1 - 590, 720 - 1 - 446)), device=device)
+    # us_lon_indices_hres = torch.tensor(list(range(930, 1218)), device=device)
+    
+    us_lat_indices_hres = torch.tensor(list(range(131, 275)), device=device)
+    us_lon_indices_hres = torch.tensor(list(range(930, 1218)), device=device)
+
+    # us_lat_indices_lres = torch.tensor(list(range(48 - 1 - 39, 48 - 1 - 30 + 1)), device=device)
+    # us_lon_indices_lres = torch.tensor(list(range(61, 81 + 1)), device=device)
+    # circular_padding = torch.nn.CircularPad2d((3, 4, 3, 4))
+
     for epoch_idx in range(num_epochs):
         recon_losses = []
         disc_losses = []
@@ -219,27 +229,33 @@ def train(args):
             lres, hres = data['input'], data['output']
             lres = lres.float().to(device)
             hres = hres.float().to(device)
-            
+
             lsm_expanded = None
             if lsm is not None:
                 lsm = lsm.float().to(device)
                 lsm_expanded = lsm.expand(lres.shape[0], -1, -1, -1)  # Shape: (batch_size, 1, 721, 1440)
-            
-            lres_upsampled = F.interpolate(lres, size=(721,1440), mode='bilinear', align_corners=True)
 
-            model_output = model(x=lres_upsampled, lsm=lsm_expanded)
+            hres_us = hres[:, :, us_lat_indices_hres, :][:, :, :, us_lon_indices_hres]
+            lsm_expanded_us = lsm_expanded[:, :, us_lat_indices_hres, :][:, :, :, us_lon_indices_hres]
+            
+            lres_upsampled = F.interpolate(lres, size=(144,288), mode='bilinear', align_corners=True)
+            # lres_upsampled_padded_us = circular_padding(lres_upsampled_us)
+            # lsm_expanded_padded_us = circular_padding(lsm_expanded_us)
+
+            model_output = model(x=lres_upsampled, lsm=lsm_expanded_us)
             output, latent_distribution = model_output # For VAE,   
             
             # Adjusting output
-            output = output[:,:,3:3+721,:]
+            # output = output[:,:,3:3+145,3:3+289]
             output[:, 0] += lres_upsampled[:, 0] 
             output[:, -1] += lres_upsampled[:, -1]
             
+            # output = output[:, :, :-7, :]
              # latent_distribution is in the shape of [batch_size, 2, padded_lres//2^(N_downsampling_layers), padded_lres//2^(N_downsampling_layers)]                            
             
             ######### Optimize Generator ##########
             # 'L2 Loss + spectral loss'
-            recon_loss = spectral_sqr_abs2(output, hres, lambda_fft=train_config['lambda_fft']) # recon_loss = recon_criterion(output, hres) 
+            recon_loss = spectral_sqr_abs2(output, hres_us, lambda_fft=train_config['lambda_fft']) # recon_loss = recon_criterion(output, hres) 
             recon_losses.append(recon_loss.item())
 
             # recon_loss = recon_loss / accumulation_steps
