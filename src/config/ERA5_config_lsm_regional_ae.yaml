@@ -67,8 +67,8 @@ autoencoder_params:
 train_params:
   # General training settings
   seed: 1111  # Random seed for reproducibility
-  task_name: 'vae_concat_v5'  # Name of the current training task
-  description : 'Training with lsm on + circular padding + on the difference of interpolated input and hres, on normal percip'  # Description of the training task
+  task_name: 'ae_regional_us'  # Name of the current training task
+  description : 'LSM On, VAE trained on US instead of globe.'  # Description of the training task
   results_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to save results: task_dir = os.path.join(results_dir, train_config['task_name'])
   load_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to load results from
   load_from_checkpoint: False  # Whether to load the model from a previous checkpoint
@@ -77,7 +77,7 @@ train_params:
 
   # Batch sizes and memory-related configurations
   ldm_batch_size: 4  # Batch size for latent diffusion model (LDM) training (limited by GPU capacity: for Derecho 1 per GPU)
-  autoencoder_batch_size: 8  # Batch size for autoencoder training (limited by GPU capacity: for Derecho 2 per GPU)
+  autoencoder_batch_size: 256  # Batch size for autoencoder training (limited by GPU capacity: for Derecho 2 per GPU)
   
   # Discriminator settings
   disc_start: 10  # Epoch to start training the discriminator

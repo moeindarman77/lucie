@@ -67,7 +67,7 @@ autoencoder_params:
 train_params:
   # General training settings
   seed: 1111  # Random seed for reproducibility
-  task_name: 'vae_concat_v5'  # Name of the current training task
+  task_name: 'ae_concat'  # Name of the current training task
   description : 'Training with lsm on + circular padding + on the difference of interpolated input and hres, on normal percip'  # Description of the training task
   results_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to save results: task_dir = os.path.join(results_dir, train_config['task_name'])
   load_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to load results from

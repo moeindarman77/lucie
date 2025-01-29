@@ -3,18 +3,15 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 from torch.optim import Adam
-from dataset.mnist_dataset import MnistDataset
-from dataset.celeb_dataset import CelebDataset
-from dataset.utilities import load_glorys_roms_whole, zero_mask
+from torch.nn import DataParallel
+from dataset.ClimateDataset import ClimateDataset
 from torch.utils.data import DataLoader
 from models.unet_cond_base import Unet
 from models.vqvae import VQVAE
 from models.vae import VAE
 from scheduler.linear_noise_scheduler import LinearNoiseScheduler
-from utils.text_utils import *
 from utils.config_utils import *
 from utils.diffusion_utils import *
-from dataset.utilities import GlorysRomsDataset
 import torch.nn.functional as F
 import logging
 
@@ -31,10 +28,10 @@ def train(args):
     print(config)
     ########################
     
-    diffusion_config = config['diffusion_params']
     dataset_config = config['dataset_params']
+    diffusion_config = config['diffusion_params']
     diffusion_model_config = config['ldm_params']
-    autoencoder_model_config = config['autoencoder_params']
+    autoencoder_config = config['autoencoder_params']
     train_config = config['train_params']
     
     # Define the results directory #
@@ -75,41 +72,78 @@ def train(args):
     #             empty_text_embed = get_text_representation([''], text_tokenizer, text_model, device)
 
 
-    # Create dataset instance
-    dataset = GlorysRomsDataset(steps=range(dataset_config['num_train_data']),
-                                 channels=["SSU", "SSV", "SSH",], 
-                                 added_channels=[], 
-                                 data_dir=dataset_config["data_dir"],
-                                 lat_lon_keep= tuple(dataset_config["lat_lon_keep"]), 
-                                 interpolator_use="scipy", )
+    # Create dataset instance    
+    input_vars = ['Temperature_7', 'Specific_Humidity_7', 'U-wind_3', 'V-wind_3', 'logp', 'tp6hr']
+    output_vars = ['2m_temperature', 'tp6hr']
+    lr_lats = [87.159, 83.479, 79.777, 76.070, 72.362, 68.652, 64.942, 61.232, 
+           57.521, 53.810, 50.099, 46.389, 42.678, 38.967, 35.256, 31.545, 
+           27.833, 24.122, 20.411, 16.700, 12.989, 9.278, 5.567, 1.856, 
+           -1.856, -5.567, -9.278, -12.989, -16.700, -20.411, -24.122, 
+           -27.833, -31.545, -35.256, -38.967, -42.678, -46.389, -50.099, 
+           -53.810, -57.521, -61.232, -64.942, -68.652, -72.362, -76.070, 
+           -79.777, -83.479, -87.159]
+
+    lr_lons = [0.0, 3.75, 7.5, 11.25, 15.0, 18.75, 22.5, 26.25, 30.0, 33.75,
+           37.5, 41.25, 45.0, 48.75, 52.5, 56.25, 60.0, 63.75, 67.5, 71.25,
+           75.0, 78.75, 82.5, 86.25, 90.0, 93.75, 97.5, 101.25, 105.0, 108.75,
+           112.5, 116.25, 120.0, 123.75, 127.5, 131.25, 135.0, 138.75, 142.5, 146.25,
+           150.0, 153.75, 157.5, 161.25, 165.0, 168.75, 172.5, 176.25, 180.0, 183.75,
+           187.5, 191.25, 195.0, 198.75, 202.5, 206.25, 210.0, 213.75, 217.5, 221.25,
+           225.0, 228.75, 232.5, 236.25, 240.0, 243.75, 247.5, 251.25, 255.0, 258.75,
+           262.5, 266.25, 270.0, 273.75, 277.5, 281.25, 285.0, 288.75, 292.5, 296.25,
+           300.0, 303.75, 307.5, 311.25, 315.0, 318.75, 322.5, 326.25, 330.0, 333.75,
+           337.5, 341.25, 345.0, 348.75, 352.5, 356.25]
+    dataset = ClimateDataset(input_dir_lr=dataset_config['input_data_dir'], 
+                             input_dir_hr=dataset_config['output_data_dir'], 
+                             input_vars=input_vars, 
+                             output_vars=output_vars, 
+                             lr_lats=lr_lats, 
+                             lr_lons=lr_lons,
+                             year_range=(dataset_config['year_range_start'], dataset_config['year_range_end']),
+                             normalize=True, 
+                             input_normalization_file=dataset_config['input_normalization_dir'], 
+                             output_normalization_file=dataset_config['output_normalization_dir']) 
+    if dataset_config['land_sea_mask'] == 1:
+        lsm = torch.tensor(np.load(dataset_config['land_sea_mask_dir'])['land_sea_mask']).unsqueeze(0).unsqueeze(1)
+    else:
+        lsm = None
     logging.info("Dataset loaded.")
 
     # Create DataLoader
     data_loader = DataLoader(dataset, 
-                             batch_size=train_config['ldm_batch_size'], 
+                             batch_size=train_config['ldm_batch_size'], #GPU can't take more than 8
                              shuffle=True, 
-                             num_workers=4) #GPU can't take more than 8
+                             num_workers=2) # 2 workers are enough as I incease them don't see any improvement
     logging.info("DataLoader created.")
 
     # Instantiate the unet model
-    model = Unet(im_channels=autoencoder_model_config['z_channels'],
-                 model_config=diffusion_model_config).to(device)
+    model = Unet(im_channels=autoencoder_config['z_channels'],
+                 model_config=diffusion_model_config)
+    model = DataParallel(model)
+    model = model.to(device)
     model.train()
     
     vae = None
     # Load VAE ONLY if latents are not to be saved or some are missing
     if not train_config['load_latents']:
         print('Loading VAE model as latents not present')
-        vae = VAE(im_channels=dataset_config['im_channels'],
-                    model_config=autoencoder_model_config).to(device)
+        vae = VAE(input_channels=dataset_config['input_channels']+dataset_config['land_sea_mask'],
+                output_channels=dataset_config['output_channels'],
+                model_config=autoencoder_config)
+        vae = DataParallel(vae)
+        vae = vae.to(device)
         vae.eval()
         # Load vae if found
         vae_load_dir = os.path.join(train_config['results_dir'], train_config['task_name'])
         if os.path.exists(vae_load_dir):
             print('Loaded vae checkpoint')
-            vae.load_state_dict(torch.load(os.path.join(vae_load_dir,
-                                                        train_config['vae_autoencoder_ckpt_name']),
-                                           map_location=device)['model_state_dict'])
+            # vae.load_state_dict(torch.load(os.path.join(vae_load_dir,
+            #                                             train_config['vae_autoencoder_ckpt_name']),
+            #                                map_location=device,
+            #                                weights_only=True)['model_state_dict'])
+            vae.load_state_dict(torch.load("/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v4/checkpoints/latest_autoencoder_epoch25.pth",
+                                           map_location=device,
+                                           weights_only=True)['model_state_dict'])
             # vae.load_state_dict(torch.load(os.path.join(vae_load_dir,
             #                                             train_config['vae_autoencoder_ckpt_name']),
             #                                map_location=device))
@@ -126,33 +160,41 @@ def train(args):
         assert vae is not None
         for param in vae.parameters():
             param.requires_grad = False
-    
+    circular_padding = torch.nn.CircularPad2d((0, 0, 3, 4))
     # Run training
     for epoch_idx in range(num_epochs):
         losses = []
+
         for batch_idx, data in enumerate(tqdm(data_loader)):
 
-            cond_input = None
-            lres, hres = data
-            lres = lres.float().to(device)
-            hres = hres.float().to(device)
+            # Extract inputs and move to device
+            lres, hres = data['input'], data['output']
+            lres, hres = lres.float().to(device), hres.float().to(device)
 
-            # hres = F.pad(hres, (3, 4, 2, 2), mode='constant', value=0)
-            # lres = F.pad(lres, (2, 2, 3, 4), mode='constant', value=0)
-            
-            # lres_upsampled = F.interpolate(lres, size=(352, 608), mode='bilinear', align_corners=False)
-            lres_padded = F.pad(lres, (0, 3, 1, 1), mode='constant', value=0)
-            cond_input = lres_padded
-            # Fetch autoencoders output(reconstructions)
-            with torch.no_grad():        
-                _, latent_distribution, _ = vae.encode(lres_padded)
-                latent_mean, _ = torch.chunk(latent_distribution, 2, dim=1)
+            # Expand lsm if available
+            lsm_expanded = None
+            if lsm is not None:
+                lsm = lsm.float().to(device)
+                lsm_expanded = lsm.expand(lres.shape[0], -1, -1, -1)  # Shape: (batch_size, 1, 721, 1440)
 
-            # Padd zeros to im
-            # Here, we pad with 2 zeros on top and bottom, 3 zeros on left and right (padding_left, padding_right, padding_top, padding_bottom).
-            # im = F.pad(im, (3, 4, 2, 2), mode='constant', value=0)
-            # cond_input  = F.pad(cond_input, (2, 2, 3, 4), mode='constant', value=0)
-            
+            # Upsample low-resolution input
+            lres_upsampled = F.interpolate(lres, size=(721, 1440), mode='bilinear', align_corners=True)
+
+            # Prepare input for VAE (concatenating lsm if present)
+            x_upsampled = lres_upsampled
+            if lsm_expanded is not None:
+                x_upsampled = torch.cat([x_upsampled, lsm_expanded], dim=1)  # Shape: (batch_size, input_channel+1, 721, 1440)
+
+            # Apply circular padding
+            x_upsampled = circular_padding(x_upsampled)
+
+            # Set conditional input
+            cond_input = lres_upsampled
+
+            # Obtain latent representation from VAE (inference mode)
+            with torch.no_grad():
+                latent_sample, latent_distribution, _ = vae.module.encode(x_upsampled)
+                # latent_mean, _ = torch.chunk(latent_distribution, 2, dim=1)
             # if condition_config is not None:
             #     cond_input, im = data
             # else:
@@ -163,55 +205,24 @@ def train(args):
                 # with torch.no_grad():
                 #     im, _ = vae.encode(im)
                     
-            ########### Handling Conditional Input ###########
-            # if 'text' in condition_types:
-            #     with torch.no_grad():
-            #         assert 'text' in cond_input, 'Conditioning Type Text but no text conditioning input present'
-            #         validate_text_config(condition_config)
-            #         text_condition = get_text_representation(cond_input['text'],
-            #                                                      text_tokenizer,
-            #                                                      text_model,
-            #                                                      device)
-            #         text_drop_prob = get_config_value(condition_config['text_condition_config'],
-            #                                           'cond_drop_prob', 0.)
-            #         text_condition = drop_text_condition(text_condition, im, empty_text_embed, text_drop_prob)
-            #         cond_input['text'] = text_condition
-            # if 'image' in condition_types:
-            #     assert 'image' in cond_input, 'Conditioning Type Image but no image conditioning input present'
-            #     validate_image_config(condition_config)
-            #     cond_input_image = cond_input['image'].to(device)
-            #     # Drop condition
-            #     im_drop_prob = get_config_value(condition_config['image_condition_config'],
-            #                                           'cond_drop_prob', 0.)
-            #     cond_input['image'] = drop_image_condition(cond_input_image, im, im_drop_prob)
-            # if 'class' in condition_types:
-            #     assert 'class' in cond_input, 'Conditioning Type Class but no class conditioning input present'
-            #     validate_class_config(condition_config)
-            #     class_condition = torch.nn.functional.one_hot(
-            #         cond_input['class'],
-            #         condition_config['class_condition_config']['num_classes']).to(device)
-            #     class_drop_prob = get_config_value(condition_config['class_condition_config'],
-            #                                        'cond_drop_prob', 0.)
-            #     # Drop condition
-            #     cond_input['class'] = drop_class_condition(class_condition, class_drop_prob, im)
-            ################################################
+            ##########################
             
             # Sample random noise
-            noise = torch.randn_like(latent_mean).to(device)
+            noise = torch.randn_like(latent_sample).to(device)
             
             # Sample timestep
-            t = torch.randint(0, diffusion_config['num_timesteps'], (latent_mean.shape[0],)).to(device)
+            t = torch.randint(0, diffusion_config['num_timesteps'], (latent_sample.shape[0],)).to(device)
             
             # Add noise to images according to timestep
-            noisy_im = scheduler.add_noise(latent_mean, noise, t)
+            noisy_im = scheduler.add_noise(latent_sample, noise, t)
 
             # Apply padding to be divisible by 8
-            noisy_im_padded = F.pad(noisy_im, (0, (80 - 75), 0, (48 - 43)), mode='constant', value=0)
+            noisy_im_padded = F.pad(noisy_im, (0, (184 - 180), 0, (96 - 91)), mode='constant', value=0)
 
-            
             noise_pred = model(noisy_im_padded, t, cond_input=cond_input)
             # Unpadd the noise_pred
-            noise_pred = noise_pred[..., :43, :75]
+            noise_pred = noise_pred[..., :91, :180]
+            # Remember to do             output = output[:, :, :-7, :] for sampling here
 
             loss = criterion(noise_pred, noise)
             losses.append(loss.item())

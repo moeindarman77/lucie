@@ -34,8 +34,13 @@ class ClimateDataset(Dataset):
         self.lr_files_six_hourly = self.lr_files[::6]
 
         # Use limited data for debugging
+<<<<<<< HEAD
         # self.hr_files = self.hr_files[:16]
         # self.lr_files_six_hourly = self.lr_files_six_hourly[:16]
+=======
+        # self.hr_files = self.hr_files[:32]
+        # self.lr_files_six_hourly = self.lr_files_six_hourly[:32]
+>>>>>>> e6accb85fa9f109114d1fbe5375483ee25de06d2
 
         assert len(self.hr_files) == len(self.lr_files_six_hourly), \
             "Mismatch between high-resolution and low-resolution timesteps."
@@ -99,10 +104,10 @@ class ClimateDataset(Dataset):
             hr_lats = f['Latitude'][:]
             hr_lons = f['Longitude'][:]
 
-        if "tp6hr" in hr_data:
-            # print(((hr_data["tp6hr"] + 1e-8)<0).any(), hr_data["tp6hr"].min())
-            hr_data["tp6hr"] = np.log(hr_data["tp6hr"] + 1e-3)  # Adding a small constant to avoid log(0)
-            
+        # if "tp6hr" in hr_data:
+        #     # print(((hr_data["tp6hr"] + 1e-8)<0).any(), hr_data["tp6hr"].min())
+        #     # hr_data["tp6hr"] = np.log(hr_data["tp6hr"] + 1e-3)  # Adding a small constant to avoid log(0)
+        #     pass
         # Normalize HR data if needed
         if self.normalize:
             hr_data = {var: (hr_data[var] - self.output_mean_std[var][0]) / self.output_mean_std[var][1]
@@ -113,10 +118,11 @@ class ClimateDataset(Dataset):
         with h5py.File(lr_file_path, 'r') as f:
             lr_data = {var: np.flipud(f['input'][var][:]) for var in self.input_vars}
 
-        if "tp6hr" in lr_data:
-            # print(((lr_data["tp6hr"] + 1e-8)<0).any(), lr_data["tp6hr"].min())
-            lr_data["tp6hr"] = np.log(lr_data["tp6hr"] + 1e-3)  # Adding a small constant to avoid log(0)
-
+        # if "tp6hr" in lr_data:
+        #     # print(((lr_data["tp6hr"] + 1e-8)<0).any(), lr_data["tp6hr"].min())
+        #     # lr_data["tp6hr"] = np.log(lr_data["tp6hr"] + 1e-3)  # Adding a small constant to avoid log(0)
+        #     pass
+        
         # Normalize LR data if needed
         if self.normalize:
             lr_data = {var: (lr_data[var] - self.input_mean_std[var][0]) / self.input_mean_std[var][1]
