@@ -27,13 +27,15 @@ class ClimateDataset(Dataset):
             start_year, end_year = self.year_range
             self.lr_files = [f for f in self.lr_files if start_year <= int(os.path.basename(f).split('_')[0]) <= end_year]
             self.hr_files = [f for f in self.hr_files if start_year <= int(os.path.basename(f).split('_')[0]) <= end_year]
+            print("Length of lr_files: ", len(self.lr_files))
+            print("Length of hr_files: ", len(self.hr_files))
 
         # Adjust LR files to every 6th file to align with HR files
         self.lr_files_six_hourly = self.lr_files[::6]
 
         # Use limited data for debugging
-        self.hr_files = self.hr_files[:100]
-        self.lr_files_six_hourly = self.lr_files_six_hourly[:100]
+        # self.hr_files = self.hr_files[:16]
+        # self.lr_files_six_hourly = self.lr_files_six_hourly[:16]
 
         assert len(self.hr_files) == len(self.lr_files_six_hourly), \
             "Mismatch between high-resolution and low-resolution timesteps."
