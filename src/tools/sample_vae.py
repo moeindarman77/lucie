@@ -90,7 +90,7 @@ def infer(args):
     model = model.to(device)
 
     # load_dir = os.path.join(task_dir, train_config['vae_autoencoder_ckpt_name'])
-    load_dir = '/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v0/checkpoints/vae_autoencoder_ckpt_epoch_40.pth'
+    load_dir = '/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v3/checkpoints/latest_autoencoder.pth'
     model.load_state_dict(torch.load(load_dir, map_location=device, weights_only=True)['model_state_dict'])
     model.eval()
     step = 0
