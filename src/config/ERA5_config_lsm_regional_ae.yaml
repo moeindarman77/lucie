@@ -4,6 +4,7 @@ dataset_params:
   normalize: True
   input_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_lr_2000_2009.npz'
   output_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_hr_2000_2009.npz'
+  lucie_file_path: '/glade/derecho/scratch/mdarman/lucie/LUCIE_inference_start2010.npz'
   year_range_start: 2000
   year_range_end: 2009
   num_train_data: 9131 # 9131 for 25 years 
@@ -67,8 +68,8 @@ autoencoder_params:
 train_params:
   # General training settings
   seed: 1111  # Random seed for reproducibility
-  task_name: 'ae_regional_us'  # Name of the current training task
-  description : 'LSM On, VAE trained on US instead of globe.'  # Description of the training task
+  task_name: 'ae_regional_us_v1'  # Name of the current training task
+  description : 'LSM On, AE trained on US instead of globe, kl loss low, only mse'  # Description of the training task
   results_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to save results: task_dir = os.path.join(results_dir, train_config['task_name'])
   load_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to load results from
   load_from_checkpoint: False  # Whether to load the model from a previous checkpoint
@@ -85,7 +86,7 @@ train_params:
 
   # KL divergence annealing
   kl_start: 0.0  # Starting value of the KL weight
-  kl_end: 0.1  # Final value of the KL weight
+  kl_end: 0.01  # Final value of the KL weight
   kl_anneal_epochs: 50  # Number of epochs over which to anneal the KL weight
   kl_weight: 0.5  # Weight of the KL divergence loss in the overall loss
 
@@ -93,7 +94,7 @@ train_params:
   codebook_weight: 1  # Weight for the codebook loss in VQ-VAE
   commitment_beta: 0.2  # Commitment loss weight for VQ-VAE
   perceptual_weight: 1  # Weight for perceptual loss
-  lambda_fft: 0.1  # Weight for FFT loss
+  lambda_fft: 0.0  # Weight for FFT loss
 
   # Training duration
   ldm_epochs: 100  # Number of epochs for training the latent diffusion model (LDM)

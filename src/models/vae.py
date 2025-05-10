@@ -108,6 +108,7 @@ class VAE(nn.Module):
         out = self.pre_quant_conv(out)
         mean, logvar = torch.chunk(out, 2, dim=1)
         std = torch.exp(0.5 * logvar)
+        print(f"Loop: {torch.rand(1).item()}")  # Always the same inside the loop
         latent_sample = mean + std * torch.randn(mean.shape).to(device=x.device)
         latent_distribution = out
         return latent_sample, latent_distribution, encoded_features

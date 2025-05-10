@@ -40,9 +40,12 @@ def infer(args):
     task_dir = os.path.join(results_dir, train_config['task_name'])
     if not os.path.exists(task_dir):
         os.mkdir(task_dir)
+    
+    save_dir = os.path.join(task_dir,'samples')
+    os.makedirs(save_dir, exist_ok=True)
 
     # Create dataset instance
-    input_vars = ['Temperature_7', 'Specific_Humidity_7', 'U-wind_3', 'V-wind_3', 'logp', 'tp6hr']
+    input_vars = ['Temperature_7', 'Specific_Humidity_7', 'U-wind_3', 'V-wind_3', 'logp', 'tp6hr', 'land_sea_mask', 'orography']
     output_vars = ['2m_temperature', 'tp6hr']
     lr_lats = [87.159, 83.479, 79.777, 76.070, 72.362, 68.652, 64.942, 61.232, 
            57.521, 53.810, 50.099, 46.389, 42.678, 38.967, 35.256, 31.545, 
@@ -78,11 +81,6 @@ def infer(args):
         lsm = torch.tensor(np.load(dataset_config['land_sea_mask_dir'])['land_sea_mask']).unsqueeze(0).unsqueeze(1)
     else:
         lsm = None
-    # dataset = LucieDataset(file_path=dataset_config['input_data_dir'],
-    #                        input_vars=input_vars,
-    #                         normalize=True,
-    #                         normalization_file=dataset_config['input_normalization_dir'])
-    
     # Create DataLoader
     data_loader = DataLoader(dataset, 
                              batch_size=train_config['autoencoder_batch_size'], 
@@ -97,7 +95,7 @@ def infer(args):
 
     # load_dir = os.path.join(task_dir, train_config['vae_autoencoder_ckpt_name'])
     # load_dir = '/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v0/checkpoints/vae_autoencoder_ckpt_epoch_40.pth'
-    load_dir = '/media/volume/moein-storage-1/lucie/results/vae_concat_v4/checkpoints/latest_autoencoder.pth'
+    load_dir = '/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v6/checkpoints/vae_autoencoder_ckpt_epoch_45.pth'
     
     model.load_state_dict(torch.load(load_dir, map_location=device, weights_only=True)['model_state_dict'])
     model.eval()
@@ -120,13 +118,13 @@ def infer(args):
             decoded_output, _ = model(lres_upsampled, lsm_expanded)
             decoded_output = decoded_output[:,:,3:3+721,:]
             decoded_output[:, 0] += lres_upsampled[:, 0] 
-            decoded_output[:, -1] += lres_upsampled[:, -1]
+            decoded_output[:, -1] += lres_upsampled[:, -3]
             # decoded_output = decoded_output[:, :, :-7, :] 
 
             lucie_zero_shot, _ = model(lucie_upsampled, lsm_expanded)
             lucie_zero_shot = lucie_zero_shot[:,:,3:3+721,:]
             lucie_zero_shot[:, 0] += lucie_upsampled[:, 0] 
-            lucie_zero_shot[:, -1] += lucie_upsampled[:, -1]
+            lucie_zero_shot[:, -1] += lucie_upsampled[:, -3]
             # lucie_zero_shot = lucie_zero_shot[:, :, :-7, :]
 
             # Convert tensors to numpy arrays
@@ -141,8 +139,8 @@ def infer(args):
             decoded_outputs_numpy = decoded_output.cpu().numpy()   # Shape: [num_samples, batch_size, channels, height, width]
 
             # Save to an npz file named with the index of the data loader
-            save_dir = os.path.join(task_dir,'samples', f'{step}.npz')
-            np.savez(save_dir, 
+            save_path = os.path.join(save_dir, f'{step}.npz')
+            np.savez(save_path, 
                      lres=lres_numpy, 
                      lres_interp=lres_interp_numpy, 
                      hres=hres_numpy, 

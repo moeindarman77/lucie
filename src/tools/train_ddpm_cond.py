@@ -10,6 +10,7 @@ from models.unet_cond_base import Unet
 from models.vqvae import VQVAE
 from models.vae import VAE
 from scheduler.linear_noise_scheduler import LinearNoiseScheduler
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau, ExponentialLR
 from utils.config_utils import *
 from utils.diffusion_utils import *
 import torch.nn.functional as F
@@ -26,6 +27,7 @@ def train(args):
         except yaml.YAMLError as exc:
             print(exc)
     print(config)
+
     ########################
     
     dataset_config = config['dataset_params']
@@ -41,13 +43,24 @@ def train(args):
         os.mkdir(results_dir)
 
     task_dir = os.path.join(results_dir, train_config['task_name'])
-    if not os.path.exists(task_dir):
-        os.mkdir(task_dir)
+    os.makedirs(task_dir, exist_ok=True)
 
     # Create a directory for checkpoints if it doesn't exist
     checkpoint_dir = os.path.join(task_dir, 'checkpoints')
     if not os.path.exists(checkpoint_dir):
         os.mkdir(checkpoint_dir)
+    
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,  # Set the logging level
+        format='%(asctime)s - %(levelname)s - %(message)s',  # Log format
+        handlers=[
+            logging.FileHandler(os.path.join(os.path.join(task_dir, 'training_ldm.log'))),  # Log to a file
+            logging.StreamHandler()  # Log to console
+        ]
+    )
+    logging.info(config)
+    logging.info("Configuration loaded successfully.")
 
     ########## Create the noise scheduler #############
     scheduler = LinearNoiseScheduler(num_timesteps=diffusion_config['num_timesteps'],
@@ -73,7 +86,7 @@ def train(args):
 
 
     # Create dataset instance    
-    input_vars = ['Temperature_7', 'Specific_Humidity_7', 'U-wind_3', 'V-wind_3', 'logp', 'tp6hr']
+    input_vars = ['Temperature_7', 'Specific_Humidity_7', 'U-wind_3', 'V-wind_3', 'logp', 'tp6hr', 'land_sea_mask', 'orography']
     output_vars = ['2m_temperature', 'tp6hr']
     lr_lats = [87.159, 83.479, 79.777, 76.070, 72.362, 68.652, 64.942, 61.232, 
            57.521, 53.810, 50.099, 46.389, 42.678, 38.967, 35.256, 31.545, 
@@ -141,9 +154,12 @@ def train(args):
             #                                             train_config['vae_autoencoder_ckpt_name']),
             #                                map_location=device,
             #                                weights_only=True)['model_state_dict'])
-            vae.load_state_dict(torch.load("/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v4/checkpoints/latest_autoencoder_epoch25.pth",
-                                           map_location=device,
-                                           weights_only=True)['model_state_dict'])
+            # vae.load_state_dict(torch.load("/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v6/checkpoints/vae_autoencoder_ckpt_epoch_45.pth",
+            #                                map_location=device,
+            #                                weights_only=True)['model_state_dict'])
+            checkpoint = torch.load("/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v6/checkpoints/vae_autoencoder_ckpt_epoch_45.pth", 
+                                    map_location=device)
+            vae.load_state_dict(checkpoint['model_state_dict'])
             # vae.load_state_dict(torch.load(os.path.join(vae_load_dir,
             #                                             train_config['vae_autoencoder_ckpt_name']),
             #                                map_location=device))
@@ -153,6 +169,13 @@ def train(args):
     # Specify training parameters
     num_epochs = train_config['ldm_epochs']
     optimizer = Adam(model.parameters(), lr=train_config['ldm_lr'])
+    scheduler_step_size = train_config.get('scheduler_step_size_diff', 10)
+    scheduler_gamma = train_config.get('scheduler_gamma_diff', 0.1)
+    # scheduler_optimizer = StepLR(optimizer, step_size=scheduler_step_size, gamma=scheduler_gamma)
+    # scheduler_optimizer = ReduceLROnPlateau(optimizer, 'min', factor=0.1, patience=5, verbose=True)
+    scheduler_optimizer = ExponentialLR(optimizer, gamma=0.99)
+    
+
     criterion = torch.nn.MSELoss()
     
     # Load vae and freeze parameters ONLY if latents already not saved
@@ -161,6 +184,9 @@ def train(args):
         for param in vae.parameters():
             param.requires_grad = False
     circular_padding = torch.nn.CircularPad2d((0, 0, 3, 4))
+    optimizer_has_stepped = False
+
+    best_epoch_loss = float('inf')
     # Run training
     for epoch_idx in range(num_epochs):
         losses = []
@@ -178,7 +204,7 @@ def train(args):
                 lsm_expanded = lsm.expand(lres.shape[0], -1, -1, -1)  # Shape: (batch_size, 1, 721, 1440)
 
             # Upsample low-resolution input
-            lres_upsampled = F.interpolate(lres, size=(721, 1440), mode='bilinear', align_corners=True)
+            lres_upsampled = F.interpolate(lres, size=(721,1440), mode='bilinear', align_corners=True)
 
             # Prepare input for VAE (concatenating lsm if present)
             x_upsampled = lres_upsampled
@@ -194,19 +220,9 @@ def train(args):
             # Obtain latent representation from VAE (inference mode)
             with torch.no_grad():
                 latent_sample, latent_distribution, _ = vae.module.encode(x_upsampled)
-                # latent_mean, _ = torch.chunk(latent_distribution, 2, dim=1)
-            # if condition_config is not None:
-            #     cond_input, im = data
-            # else:
-            #     im = data
             optimizer.zero_grad()
-            # im = im.float().to(device) 
-            # if not im_dataset.use_latents:
-                # with torch.no_grad():
-                #     im, _ = vae.encode(im)
-                    
-            ##########################
             
+            ##########################
             # Sample random noise
             noise = torch.randn_like(latent_sample).to(device)
             
@@ -228,9 +244,12 @@ def train(args):
             losses.append(loss.item())
             loss.backward()
             optimizer.step()
-        print('Finished epoch:{} | Loss : {:.4f}'.format(
-            epoch_idx + 1,
-            np.mean(losses)))
+            # scheduler_optimizer.step()
+
+            optimizer_has_stepped = True
+
+        current_lr = scheduler_optimizer.get_last_lr()[0]
+        logging.info(f'Epoch [{epoch_idx + 1}/{num_epochs}], Learning Rate: {current_lr:.4e} Loss: {np.mean(losses):.4f}')
         if (epoch_idx + 1) % train_config['ldm_save_interval'] == 0:
             checkpoint_dir = os.path.join(task_dir, 'checkpoints')
             # Use the base checkpoint names from the config and append the epoch number
@@ -254,13 +273,30 @@ def train(args):
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             }, save_path)
-    
+
+        epoch_loss = np.mean(losses)
+
+        if epoch_loss < best_epoch_loss:
+            best_epoch_loss = epoch_loss
+            best_ldm_ckpt_name = os.path.join(checkpoint_dir, 'best_ldm.pth')
+            torch.save({
+                'epoch': epoch_idx + 1,
+                'model_state_dict': model.module.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+            }, best_ldm_ckpt_name)
+            logging.info(f"Best model saved at epoch {epoch_idx + 1} with loss {best_epoch_loss:.4f}")
+
+        if optimizer_has_stepped:
+            # scheduler_optimizer.step(epoch_loss)
+            scheduler_optimizer.step()
+
     print('Done Training ...')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Arguments for ddpm training')
     parser.add_argument('--config', dest='config_path',
-                        default='config/glor_config.yaml', type=str)
+                        default='config/ERA5_config_lsm.yaml', type=str)
+
     args = parser.parse_args()
     train(args)

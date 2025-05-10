@@ -2,8 +2,9 @@ dataset_params:
   input_data_dir: '/glade/derecho/scratch/asheshc/ERA5_t30/train'
   output_data_dir: '/glade/derecho/scratch/asheshc/ERA5_hr'
   normalize: True
-  input_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_lr_2000_2009.npz'
+  input_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_lr_2000_2009_updated.npz'
   output_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_hr_2000_2009.npz'
+  lucie_file_path: '/glade/derecho/scratch/mdarman/lucie/LUCIE_inference_start2010.npz'
   year_range_start: 2000
   year_range_end: 2009
   num_train_data: 9131 # 9131 for 25 years 
@@ -11,8 +12,8 @@ dataset_params:
   test_data_beg: 9131 #range(9130, 10226) is from 25 to 28 years
   test_data_end: 10226 #range(10226, 10922) is from 28 to 31 years
   lat_lon_keep: [17.1, 30.9, -98.0, -74.1]
-  input_channels: 6
-  land_sea_mask: 1 # 1 for True, 0 for False
+  input_channels: 8
+  land_sea_mask: 0 # 1 for True, 0 for False
   land_sea_mask_dir: '/glade/derecho/scratch/mdarman/lucie/lsm.npz'
   output_channels: 2
   im_size_x : 344 # size of padded image
@@ -42,7 +43,7 @@ ldm_params:
   condition_config:
     condition_types: ['image']
     image_condition_config:
-      image_condition_input_channels: 6
+      image_condition_input_channels: 8
       image_condition_output_channels: 2
       image_condition_h : 352
       image_condition_w : 608
@@ -63,12 +64,17 @@ autoencoder_params:
   num_mid_layers : 2
   num_up_layers : 2
 
+fno_params:
+  modes1: 46
+  modes2: 91
+  width: 50
+  time_emb_dim: 512
 
 train_params:
   # General training settings
   seed: 1111  # Random seed for reproducibility
-  task_name: 'vae_concat_v5'  # Name of the current training task
-  description : 'Training with lsm on + circular padding + on the difference of interpolated input and hres, on normal percip'  # Description of the training task
+  task_name: 'vae_concat_v6'  # Name of the current training task
+  description : 'Training with lsm + orography + circular padding + on the difference of interpolated input and hres, on normal percip'  # Description of the training task
   results_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to save results: task_dir = os.path.join(results_dir, train_config['task_name'])
   load_dir: '/glade/derecho/scratch/mdarman/lucie/results'  # Directory to load results from
   load_from_checkpoint: False  # Whether to load the model from a previous checkpoint
@@ -76,7 +82,7 @@ train_params:
   vae_discriminator_resume_ckpt_path: '/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v4/checkpoints/latest_discriminator_epoch25.pth'  # Path to the model checkpoint
 
   # Batch sizes and memory-related configurations
-  ldm_batch_size: 4  # Batch size for latent diffusion model (LDM) training (limited by GPU capacity: for Derecho 1 per GPU)
+  ldm_batch_size: 8  # Batch size for latent diffusion model (LDM) training (limited by GPU capacity: for Derecho 1 per GPU)
   autoencoder_batch_size: 8  # Batch size for autoencoder training (limited by GPU capacity: for Derecho 2 per GPU)
   
   # Discriminator settings
@@ -96,7 +102,7 @@ train_params:
   lambda_fft: 0.1  # Weight for FFT loss
 
   # Training duration
-  ldm_epochs: 100  # Number of epochs for training the latent diffusion model (LDM)
+  ldm_epochs: 200  # Number of epochs for training the latent diffusion model (LDM)
   autoencoder_epochs: 100  # Number of epochs for training the autoencoder
 
   # Sampling settings
@@ -104,7 +110,7 @@ train_params:
   num_grid_rows: 1  # Number of grid rows for sample generation visualization
 
   # Learning rates for different models
-  ldm_lr: 0.000005  # Learning rate for the latent diffusion model (LDM)
+  ldm_lr: 0.001  # Learning rate for the latent diffusion model (LDM)
   autoencoder_lr: 0.0001  # Learning rate for the autoencoder
 
   # Scheduler settings for learning rate decay
@@ -112,6 +118,8 @@ train_params:
   scheduler_gamma_g: 0.90  # Gamma for learning rate decay (generator)
   scheduler_step_size_d: 10  # Step size for learning rate scheduler (discriminator)
   scheduler_gamma_d: 0.90  # Gamma for learning rate decay (discriminator)
+  scheduler_step_size_diff: 5  # Step size for learning rate scheduler (Diffusion model)
+  scheduler_gamma_diff: 0.90  # Gamma for learning rate decay (Diffusion model)
 
   # Gradient accumulation settings
   autoencoder_accumulation_steps: 8  # Number of steps to accumulate gradients for autoencoder

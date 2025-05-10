@@ -55,7 +55,7 @@ class LinearNoiseScheduler:
         """
         x0 = ((xt - (self.sqrt_one_minus_alpha_cum_prod.to(xt.device)[t] * noise_pred)) /
               torch.sqrt(self.alpha_cum_prod.to(xt.device)[t]))
-        x0 = torch.clamp(x0, -1., 1.)
+        # x0 = torch.clamp(x0, -1., 1.)
         
         mean = xt - ((self.betas.to(xt.device)[t]) * noise_pred) / (self.sqrt_one_minus_alpha_cum_prod.to(xt.device)[t])
         mean = mean / torch.sqrt(self.alphas.to(xt.device)[t])

@@ -41,6 +41,9 @@ def infer(args):
     if not os.path.exists(task_dir):
         os.mkdir(task_dir)
 
+    save_dir = os.path.join(task_dir,'samples')
+    os.makedirs(save_dir, exist_ok=True)
+
     # Create dataset instance
     input_vars = ['Temperature_7', 'Specific_Humidity_7', 'U-wind_3', 'V-wind_3', 'logp', 'tp6hr']
     output_vars = ['2m_temperature', 'tp6hr']
@@ -97,14 +100,14 @@ def infer(args):
 
     # load_dir = os.path.join(task_dir, train_config['vae_autoencoder_ckpt_name'])
     # load_dir = '/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v0/checkpoints/vae_autoencoder_ckpt_epoch_40.pth'
-    load_dir = '/media/volume/moein-storage-1/lucie/results/vae_regional_us/checkpoints/vae_autoencoder_ckpt_best.pth'
+    # load_dir = '/media/volume/moein-storage-1/lucie/results/vae_regional_us/checkpoints/vae_autoencoder_ckpt_best.pth'
+    load_dir = '/glade/derecho/scratch/mdarman/lucie/results/vae_regional_us/vae_autoencoder_ckpt.pth'
     
-    us_lat_indices_hres = torch.tensor(list(range(720 - 1 - 590, 720 - 1 - 446 + 1)), device=device)
-    us_lon_indices_hres = torch.tensor(list(range(930, 1218 + 1)), device=device)
+    us_lat_indices_lres = torch.tensor(list(range(10, 19)), device=device)
+    us_lon_indices_lres = torch.tensor(list(range(61, 80)), device=device)
 
-    us_lat_indices_lres = torch.tensor(list(range(48 - 1 - 39, 48 - 1 - 30 + 1)), device=device)
-    us_lon_indices_lres = torch.tensor(list(range(61, 81 + 1)), device=device)
-    circular_padding = torch.nn.CircularPad2d((3, 4, 3, 4))
+    us_lat_indices_hres = torch.tensor(list(range(131, 275)), device=device)
+    us_lon_indices_hres = torch.tensor(list(range(930, 1218)), device=device)
 
 
     model.load_state_dict(torch.load(load_dir, map_location=device, weights_only=True)['model_state_dict'])
@@ -123,51 +126,44 @@ def infer(args):
                 lsm_expanded = lsm.expand(lres.shape[0], -1, -1, -1)  # Shape: (batch_size, 1, 721, 1440)
 
             lres_us = lres[:, :, us_lat_indices_lres, :][:, :, :, us_lon_indices_lres]
+            lucie_us = lucie[:, :, us_lat_indices_lres, :][:, :, :, us_lon_indices_lres]
             hres_us = hres[:, :, us_lat_indices_hres, :][:, :, :, us_lon_indices_hres]
             lsm_expanded_us = lsm_expanded[:, :, us_lat_indices_hres, :][:, :, :, us_lon_indices_hres]
 
+            lres_upsampled = F.interpolate(lres, size=(144,288), mode='bilinear', align_corners=True)
+            lucie_upsampled = F.interpolate(lucie, size=(144,288), mode='bilinear', align_corners=True)
+            lres_us_interpolated = F.interpolate(lres_us, size=(144,288), mode='bilinear', align_corners=True)
+            lucie_us_interpolated = F.interpolate(lucie_us, size=(144,288), mode='bilinear', align_corners=True)
 
-            lres_upsampled_us = F.interpolate(lres_us, size=(145,289), mode='bilinear', align_corners=True)
-            lres_upsampled_padded_us = circular_padding(lres_upsampled_us)
-            lsm_expanded_padded_us = circular_padding(lsm_expanded_us)
+            decoded_output, _ = model(lres_upsampled, lsm_expanded_us)
+            decoded_output[:, 0] += lres_upsampled[:, 0] 
+            decoded_output[:, -1] += lres_upsampled[:, -1]
 
-            decoded_output, _ = model(lres_upsampled_padded_us, lsm_expanded_padded_us)
-            decoded_output = decoded_output[:,:,3:3+145,3:3+289]
-            decoded_output[:, 0] += lres_upsampled_us[:, 0] 
-            decoded_output[:, -1] += lres_upsampled_us[:, -1]
+            lucie_zero_shot, _ = model(lucie_upsampled, lsm_expanded_us)
+            lucie_zero_shot[:, 0] += lucie_upsampled[:, 0] 
+            lucie_zero_shot[:, -1] += lucie_upsampled[:, -1]
 
-            # decoded_output = decoded_output[:,:,3:3+721,:]
-            # decoded_output[:, 0] += lres_upsampled[:, 0] 
-            # decoded_output[:, -1] += lres_upsampled[:, -1]
-            # decoded_output = decoded_output[:, :, :-7, :] 
-
-            # lucie_zero_shot, _ = model(lucie_upsampled, lsm_expanded)
-            # lucie_zero_shot = lucie_zero_shot[:,:,3:3+721,:]
-            # lucie_zero_shot[:, 0] += lucie_upsampled[:, 0] 
-            # lucie_zero_shot[:, -1] += lucie_upsampled[:, -1]
-            # lucie_zero_shot = lucie_zero_shot[:, :, :-7, :]
-
-            # Convert tensors to numpy arrays
-            # lres_interp_numpy = F.interpolate(lres, size=(721,1440), mode='bilinear', align_corners=True).cpu().numpy()
-            # lucie_interp_numpy = F.interpolate(lucie, size=(721,1440), mode='bilinear', align_corners=True).cpu().numpy()
-            lres_interp_numpy = lres_upsampled_us.cpu().numpy()
-            # lucie_interp_numpy = lucie_upsampled.cpu().numpy()
-            lucie_numpy = lucie.cpu().numpy()
-            lres_numpy = lres.cpu().numpy()            # Shape: [batch_size, channels, height, width]
-            hres_numpy = hres.cpu().numpy()            # Shape: [batch_size, channels, height, width]
-            # lucie_zero_shot = lucie_zero_shot.cpu().numpy()
+            # Based on GLOBE to GLOBE model, I changed the definition here. 
+            # The objective is to compare interpolation and SR model in CONUS region 
+            # for two inputs of: 1.ERA5_LRES 2. LUCIE 
+            lres_interp_numpy = lres_us_interpolated.cpu().numpy()
+            lucie_interp_numpy = lucie_us_interpolated.cpu().numpy()
+            lucie_numpy = lucie_us.cpu().numpy()
+            lres_numpy = lres_us.cpu().numpy()            # Shape: [batch_size, channels, height, width]
+            hres_numpy = hres_us.cpu().numpy()            # Shape: [batch_size, channels, height, width]
+            lucie_zero_shot = lucie_zero_shot.cpu().numpy()
             decoded_outputs_numpy = decoded_output.cpu().numpy()   # Shape: [num_samples, batch_size, channels, height, width]
 
             # Save to an npz file named with the index of the data loader
-            save_dir = os.path.join(task_dir,'samples', f'{step}.npz')
-            np.savez(save_dir, 
+            save_path = os.path.join(save_dir, f'{step}.npz')
+            np.savez(save_path, 
                      lres=lres_numpy, 
                      lres_interp=lres_interp_numpy, 
                      hres=hres_numpy, 
                      output=decoded_outputs_numpy, 
-                     lucie=lucie_numpy,)
-                    #  lucie_interp=lucie_interp_numpy,
-                    #  lucie_zero_shot=lucie_zero_shot)
+                     lucie=lucie_numpy,
+                     lucie_interp=lucie_interp_numpy,
+                     lucie_zero_shot=lucie_zero_shot)
             print(f'Saved {step}.npz')
   
         # if train_config['save_latents']:

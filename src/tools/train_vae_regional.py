@@ -200,12 +200,14 @@ def train(args):
     
     logging.info("Starting training loop.")
 
-    # us_lat_indices_hres = torch.tensor(list(range(720 - 1 - 590, 720 - 1 - 446)), device=device)
-    # us_lon_indices_hres = torch.tensor(list(range(930, 1218)), device=device)
-    
+    us_lat_indices_lres = torch.tensor(list(range(10, 19)), device=device)
+    us_lon_indices_lres = torch.tensor(list(range(61, 80)), device=device)
+
     us_lat_indices_hres = torch.tensor(list(range(131, 275)), device=device)
     us_lon_indices_hres = torch.tensor(list(range(930, 1218)), device=device)
 
+    # us_lat_indices_hres = torch.tensor(list(range(720 - 1 - 590, 720 - 1 - 446)), device=device)
+    # us_lon_indices_hres = torch.tensor(list(range(930, 1218)), device=device)
     # us_lat_indices_lres = torch.tensor(list(range(48 - 1 - 39, 48 - 1 - 30 + 1)), device=device)
     # us_lon_indices_lres = torch.tensor(list(range(61, 81 + 1)), device=device)
     # circular_padding = torch.nn.CircularPad2d((3, 4, 3, 4))
@@ -235,10 +237,12 @@ def train(args):
                 lsm = lsm.float().to(device)
                 lsm_expanded = lsm.expand(lres.shape[0], -1, -1, -1)  # Shape: (batch_size, 1, 721, 1440)
 
+            # lres_us = lres[:, :, us_lat_indices_lres, :][:, :, :, us_lon_indices_lres]
             hres_us = hres[:, :, us_lat_indices_hres, :][:, :, :, us_lon_indices_hres]
             lsm_expanded_us = lsm_expanded[:, :, us_lat_indices_hres, :][:, :, :, us_lon_indices_hres]
             
             lres_upsampled = F.interpolate(lres, size=(144,288), mode='bilinear', align_corners=True)
+            # lres_us_interpolated = F.interpolate(lres_us, size=(144,288), mode='bilinear', align_corners=True)
             # lres_upsampled_padded_us = circular_padding(lres_upsampled_us)
             # lsm_expanded_padded_us = circular_padding(lsm_expanded_us)
 
@@ -246,12 +250,9 @@ def train(args):
             output, latent_distribution = model_output # For VAE,   
             
             # Adjusting output
-            # output = output[:,:,3:3+145,3:3+289]
             output[:, 0] += lres_upsampled[:, 0] 
             output[:, -1] += lres_upsampled[:, -1]
-            
-            # output = output[:, :, :-7, :]
-             # latent_distribution is in the shape of [batch_size, 2, padded_lres//2^(N_downsampling_layers), padded_lres//2^(N_downsampling_layers)]                            
+            # latent_distribution is in the shape of [batch_size, 2, padded_lres//2^(N_downsampling_layers), padded_lres//2^(N_downsampling_layers)]                            
             
             ######### Optimize Generator ##########
             # 'L2 Loss + spectral loss'

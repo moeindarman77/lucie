@@ -34,14 +34,9 @@ class ClimateDataset(Dataset):
         self.lr_files_six_hourly = self.lr_files[::6]
 
         # Use limited data for debugging
-<<<<<<< HEAD
-        # self.hr_files = self.hr_files[:16]
-        # self.lr_files_six_hourly = self.lr_files_six_hourly[:16]
-=======
-        # self.hr_files = self.hr_files[:32]
-        # self.lr_files_six_hourly = self.lr_files_six_hourly[:32]
->>>>>>> e6accb85fa9f109114d1fbe5375483ee25de06d2
-
+        self.hr_files = self.hr_files[:256]
+        self.lr_files_six_hourly = self.lr_files_six_hourly[:256]
+        
         assert len(self.hr_files) == len(self.lr_files_six_hourly), \
             "Mismatch between high-resolution and low-resolution timesteps."
 
@@ -118,6 +113,8 @@ class ClimateDataset(Dataset):
         with h5py.File(lr_file_path, 'r') as f:
             lr_data = {var: np.flipud(f['input'][var][:]) for var in self.input_vars}
 
+        # if 'orography' in lr_data:
+        #     lr_data['orography'] = (lr_data['orography'] - lr_data['orography'].mean())/lr_data['orography'].std()
         # if "tp6hr" in lr_data:
         #     # print(((lr_data["tp6hr"] + 1e-8)<0).any(), lr_data["tp6hr"].min())
         #     # lr_data["tp6hr"] = np.log(lr_data["tp6hr"] + 1e-3)  # Adding a small constant to avoid log(0)

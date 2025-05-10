@@ -65,15 +65,14 @@ def sample(model, scheduler, train_config, diffusion_model_config,
     #                              lat_lon_keep= tuple(dataset_config["lat_lon_keep"]), 
     #                              interpolator_use="scipy", )
 
-    data = dataset[0]
+    circular_padding = torch.nn.CircularPad2d((0, 0, 3, 4))
+    data = dataset[cond_data_index]
     lres, hres = data['input'], data['output']
-    lres = lres.unsqueeze(0).to(device)
-    hres = hres.unsqueeze(0).to(device)
+    lres, hres = lres.unsqueeze(0).to(device), hres.unsqueeze(0).to(device)
 
     # Pre-process for VAE part
     lres_upsampled = F.interpolate(lres, size=(721,1440), mode='bilinear', align_corners=True)
-    lres_upsampled = F.pad(lres_upsampled, (0, 0, 0, 7), mode='constant', value=0)
-
+    x_upsampled = circular_padding(lres_upsampled)
     cond_input = lres_upsampled
 
     # Define the results directory #
@@ -113,21 +112,30 @@ def sample(model, scheduler, train_config, diffusion_model_config,
         #ims = torch.clamp(xt, -1., 1.).detach().cpu()
         if i == 0:
             # Decode ONLY the final iamge to save time
-            _, _, encoded_features = vae.encode(lres_upsampled)
+            _, _, encoded_features = vae.encode(x_upsampled)
             xt = xt[..., :91, :180]
             ims = vae.decode(xt, encoded_features)
-            ims = ims[:, :, :-7, :] 
+            ims = ims[:,:,3:3+721,:]
+            ims[:, 0] += lres_upsampled[:, 0]
+            ims[:, -1] += lres_upsampled[:, -3]
+            # ims = ims[:, :, :-7, :] 
             # Save the samples
             if not os.path.exists(os.path.join(task_dir, 'samples_ddpm')):
                 os.mkdir(os.path.join(task_dir, 'samples_ddpm'))
         
             # Convert tensors to numpy arrays
+            lres_numpy = lres.cpu().numpy()            # Shape: [batch_size, channels, height, width]
+            lres_interp_numpy = lres_upsampled.cpu().numpy()
             hres_numpy = hres.cpu().numpy()            # Shape: [batch_size, channels, height, width]
             ims = ims.cpu().numpy()   # Shape: [num_samples, batch_size, channels, height, width]
 
             # Save to an npz file named with the index of the data loader
-            save_dir = os.path.join(task_dir,'samples_ddpm', f'ldm_{cond_data_index}.npz')
-            np.savez(save_dir, hres=hres_numpy, output=ims)
+            save_dir = os.path.join(task_dir,'samples_ddpm', f'{cond_data_index+1}.npz')
+            np.savez(save_dir,
+                    lres=lres_numpy,
+                    lres_interp=lres_interp_numpy,
+                    hres=hres_numpy, 
+                    output=ims)
         else:
             ims = xt
 
@@ -170,8 +178,9 @@ def infer(args):
     if os.path.exists(os.path.join(task_dir,
                                    train_config['ldm_ckpt_name'])):
         print('Loaded unet checkpoint')
-        model.load_state_dict(torch.load(os.path.join(task_dir, 
-                                                      train_config['ldm_ckpt_name']))['model_state_dict'])
+        # model.load_state_dict(torch.load(os.path.join(task_dir, 
+                                                    #   train_config['ldm_ckpt_name']))['model_state_dict'])
+        model.load_state_dict(torch.load("/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v6/checkpoints/best_ldm.pth")['model_state_dict'])
     # Create output directories
     if not os.path.exists(train_config['task_name']):
         os.mkdir(train_config['task_name'])
@@ -188,11 +197,14 @@ def infer(args):
         # vae.load_state_dict(torch.load(os.path.join(task_dir,
         #                                             train_config['vae_autoencoder_ckpt_name']),
         #                                map_location=device)['model_state_dict'], strict=True)
-        vae.load_state_dict(torch.load(os.path.join(task_dir,
-                                                    train_config['vae_autoencoder_ckpt_name']),
-                                       map_location=device)['model_state_dict'], strict=True)
+        # vae.load_state_dict(torch.load(os.path.join(task_dir,
+        #                                             train_config['vae_autoencoder_ckpt_name']),
+        #                                map_location=device)['model_state_dict'], strict=True)
+        checkpoint = torch.load("/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v6/checkpoints/vae_autoencoder_ckpt_epoch_45.pth", 
+                                    map_location=device)
+        vae.load_state_dict(checkpoint['model_state_dict'])
     
-    input_vars = ['Temperature_7', 'Specific_Humidity_7', 'U-wind_3', 'V-wind_3', 'logp', 'tp6hr']
+    input_vars = ['Temperature_7', 'Specific_Humidity_7', 'U-wind_3', 'V-wind_3', 'logp', 'tp6hr', 'land_sea_mask', 'orography']
     output_vars = ['2m_temperature', 'tp6hr']
     lr_lats = [87.159, 83.479, 79.777, 76.070, 72.362, 68.652, 64.942, 61.232, 
            57.521, 53.810, 50.099, 46.389, 42.678, 38.967, 35.256, 31.545, 

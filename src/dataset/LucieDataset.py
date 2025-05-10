@@ -47,8 +47,8 @@ class LucieDataset(Dataset):
         self.lr_files_six_hourly = self.lr_files[::6]
         
         # Use limited data for debugging
-        # self.hr_files = self.hr_files[:32]
-        # self.lr_files_six_hourly = self.lr_files_six_hourly[:32]
+        self.hr_files = self.hr_files[:128]
+        self.lr_files_six_hourly = self.lr_files_six_hourly[:128]
         
         assert len(self.hr_files) == len(self.lr_files_six_hourly), \
             "Mismatch between high-resolution and low-resolution timesteps."
@@ -95,7 +95,7 @@ class LucieDataset(Dataset):
             lucie_dataset = np.load(lucie_file_path)
             self.lucie_data = lucie_dataset['data'][:, :, :, :len(lucie_vars)]
             # Take the log of percip same as the one I  slac
-            self.lucie_data[...,-1] = np.log(self.lucie_data[...,-1] + 1e-3) 
+            # self.lucie_data[...,-1] = np.log(self.lucie_data[...,-1] + 1e-3) 
             # Do the transformation for the logp inverse
             self.lucie_data[...,-2] = np.log(self.lucie_data[...,-2] * 1e-5)
             # Here I am using differnet normalization than ERA5 since the min of the percip by LUCIE is much more negative: min = Min: -0.0005455881473608315 Max: 0.18535979092121124
@@ -103,7 +103,7 @@ class LucieDataset(Dataset):
 
             # Normalize Lucie data if required
             if self.normalize:
-                for i, var in enumerate(self.lucie_vars):
+                for i, var in enumerate(self.lucie_vars[:6]):
                     mean, std = self.input_mean_std[var]  # Use LR stats for normalization
                     self.lucie_data[:, :, :, i] = (self.lucie_data[:, :, :, i] - mean) / std
 
@@ -117,8 +117,8 @@ class LucieDataset(Dataset):
             hr_data = {var: f[var][:] for var in self.output_vars}
             hr_lats = f['Latitude'][:]
             hr_lons = f['Longitude'][:]
-        if "tp6hr" in hr_data:
-            hr_data["tp6hr"] = np.log(hr_data["tp6hr"] + 1e-3)  # Adding a small constant to avoid log(0)
+        # if "tp6hr" in hr_data:
+        #     hr_data["tp6hr"] = np.log(hr_data["tp6hr"] + 1e-3)  # Adding a small constant to avoid log(0)
         if self.normalize:
             hr_data = {var: (hr_data[var] - self.output_mean_std[var][0]) / self.output_mean_std[var][1]
                        for var in self.output_vars}
@@ -127,9 +127,12 @@ class LucieDataset(Dataset):
         lr_file_path = self.lr_files_six_hourly[idx]
         with h5py.File(lr_file_path, 'r') as f:
             lr_data = {var: np.flipud(f['input'][var][:]) for var in self.input_vars}
-        if "tp6hr" in lr_data:
+
+        if 'orography' in lr_data:
+            lr_data['orography'] = (lr_data['orography'] - lr_data['orography'].mean())/lr_data['orography'].std()
+        # if "tp6hr" in lr_data:
             # print(((lr_data["tp6hr"] + 1e-8)<0).any(), lr_data["tp6hr"].min())
-            lr_data["tp6hr"] = np.log(lr_data["tp6hr"] + 1e-3)  # Adding a small constant to avoid log(0)
+            # lr_data["tp6hr"] = np.log(lr_data["tp6hr"] + 1e-3)  # Adding a small constant to avoid log(0)
         if self.normalize:
             lr_data = {var: (lr_data[var] - self.input_mean_std[var][0]) / self.input_mean_std[var][1]
                        for var in self.input_vars}
@@ -141,6 +144,7 @@ class LucieDataset(Dataset):
             lucie_tensor = torch.tensor(lucie_sample, dtype=torch.float32).permute(2, 0, 1)
             # Flipud
             lucie_tensor = lucie_tensor.flip(1)
+            lucie_tensor = torch.cat([lucie_tensor, torch.tensor(lr_data['land_sea_mask']).unsqueeze(0), torch.tensor(lr_data['orography']).unsqueeze(0)], dim=0)  # Repeat last timestep
 
         # Prepare tensors for LR and HR data
         input_tensor = torch.tensor(np.array([lr_data[var] for var in self.input_vars]), dtype=torch.float32)

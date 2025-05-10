@@ -8,7 +8,10 @@ def spectral_sqr_abs2(
     wavenum_init_lat=1, 
     lambda_fft=0.5,
     lat_lon_bal=0.5,
-    channels="all",
+    channels=[
+        ("channel_0", 0, 0.3),
+        ("channel_1", 1, 0.7),
+    ],
     fft_loss_scale=1./110.
 ):
     """
@@ -27,26 +30,26 @@ def spectral_sqr_abs2(
         grid_valid_size = output.numel()  # Total number of elements
 
     # Compute grid space loss (MSE)
-    loss_grid = torch.sum((output - target) ** 2) / (grid_valid_size * num_channels)
+    loss_grid = torch.sum((output - target) ** 2) / (grid_valid_size)
     
     # Initialize spectral loss accumulator
     run_loss_run = torch.zeros(1, device=output.device, dtype=output.dtype)
     
     # Define channels and their weights
-    if channels == "all":
-        num_spectral_chs = num_channels
-        channels = [["_", i, 1. / num_spectral_chs] for i in range(num_spectral_chs)]
-    
+    # if channels == "all":
+    #     num_spectral_chs = num_channels
+    #     channels = [["_", i, 1. / num_spectral_chs] for i in range(num_spectral_chs)]
+
     totcw = 0  # Total channel weight
 
     # Prepare data for periodic FFT along latitude and longitude
-    # Concatenate along latitude (dimension 2)
+    # # Concatenate along latitude (dimension 2)
     output2lat = torch.cat([output, torch.flip(output, [2])], dim=2)
     target2lat = torch.cat([target, torch.flip(target, [2])], dim=2)
     
-    # Concatenate along longitude (dimension 3)
-    output2lon = torch.cat([output, torch.flip(output, [3])], dim=3)
-    target2lon = torch.cat([target, torch.flip(target, [3])], dim=3)
+    # # Concatenate along longitude (dimension 3)
+    # output2lon = torch.cat([output, torch.flip(output, [3])], dim=3)
+    # target2lon = torch.cat([target, torch.flip(target, [3])], dim=3)
     
     # Loop over channels
     for [cname, c, cw] in channels:
@@ -56,14 +59,14 @@ def spectral_sqr_abs2(
             target_c = target[:, c, :, :]
             output2lat_c = output2lat[:, c, :, :]
             target2lat_c = target2lat[:, c, :, :]
-            output2lon_c = output2lon[:, c, :, :]
-            target2lon_c = target2lon[:, c, :, :]
+            # output2lon_c = output2lon[:, c, :, :]
+            # target2lon_c = target2lon[:, c, :, :]
 
             # Compute FFT along latitude (dimension 1 after channel selection)
-            # out_fft_lat = torch.abs(torch.fft.rfft(output2lat_c, dim=1))[:, wavenum_init_lat:, :]
-            # target_fft_lat = torch.abs(torch.fft.rfft(target2lat_c, dim=1))[:, wavenum_init_lat:, :]
-            out_fft_lat = torch.abs(torch.fft.rfft(output_c, dim=1))[:, wavenum_init_lat:, :]
-            target_fft_lat = torch.abs(torch.fft.rfft(target_c, dim=1))[:, wavenum_init_lat:, :]
+            out_fft_lat = torch.abs(torch.fft.rfft(output2lat_c, dim=1))[:, wavenum_init_lat:, :]
+            target_fft_lat = torch.abs(torch.fft.rfft(target2lat_c, dim=1))[:, wavenum_init_lat:, :]
+            # out_fft_lat = torch.abs(torch.fft.rfft(output_c, dim=1))[:, wavenum_init_lat:, :]
+            # target_fft_lat = torch.abs(torch.fft.rfft(target_c, dim=1))[:, wavenum_init_lat:, :]
             loss_fft_lat = torch.mean((out_fft_lat - target_fft_lat) ** 2)
 
             # Compute FFT along longitude (dimension 2 after channel selection)
@@ -81,6 +84,7 @@ def spectral_sqr_abs2(
     loss_fft = run_loss_run / totcw * fft_loss_scale
 
     # Combine grid and spectral losses
+    # print(loss_grid, loss_fft)
     loss = (1 - lambda_fft) * loss_grid + lambda_fft * loss_fft
 
     return loss

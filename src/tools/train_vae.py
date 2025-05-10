@@ -83,7 +83,7 @@ def train(args):
     logging.info("Model instantiated.")
 
     # Create dataset instance    
-    input_vars = ['Temperature_7', 'Specific_Humidity_7', 'U-wind_3', 'V-wind_3', 'logp', 'tp6hr']
+    input_vars = ['Temperature_7', 'Specific_Humidity_7', 'U-wind_3', 'V-wind_3', 'logp', 'tp6hr', 'land_sea_mask', 'orography']
     output_vars = ['2m_temperature', 'tp6hr']
     lr_lats = [87.159, 83.479, 79.777, 76.070, 72.362, 68.652, 64.942, 61.232, 
            57.521, 53.810, 50.099, 46.389, 42.678, 38.967, 35.256, 31.545, 
@@ -227,13 +227,13 @@ def train(args):
             
             lres_upsampled = F.interpolate(lres, size=(721,1440), mode='bilinear', align_corners=True)
 
-            model_output = model(x=lres_upsampled, lsm=lsm_expanded)
+            model_output = model(x=lres_upsampled, lsm=lsm_expanded) 
             output, latent_distribution = model_output # For VAE,   
             
-            # Adjusting output
-            output = output[:,:,3:3+721,:]
+            # Adjusting output 
+            output = output[:,:,3:3+721,:] # (728, 1440) --Conv_layer--> (721, 1440)
             output[:, 0] += lres_upsampled[:, 0] 
-            output[:, -1] += lres_upsampled[:, -1]
+            output[:, -1] += lres_upsampled[:, -3]
             
              # latent_distribution is in the shape of [batch_size, 2, padded_lres//2^(N_downsampling_layers), padded_lres//2^(N_downsampling_layers)]                            
             

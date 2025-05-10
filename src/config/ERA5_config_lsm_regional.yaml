@@ -4,6 +4,7 @@ dataset_params:
   normalize: True
   input_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_lr_2000_2009.npz'
   output_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_hr_2000_2009.npz'
+  lucie_file_path: '/glade/derecho/scratch/mdarman/lucie/LUCIE_inference_start2010.npz'
   year_range_start: 2000
   year_range_end: 2009
   num_train_data: 9131 # 9131 for 25 years 
