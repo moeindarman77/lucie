@@ -4,14 +4,10 @@ import os
 import pickle
 import numpy as np
 import torch
-import torchvision
 import yaml
 from torch.utils.data.dataloader import DataLoader
-from torchvision.utils import make_grid
 from tqdm import tqdm
 from dataset.ClimateDataset import ClimateDataset
-from dataset.celeb_dataset import CelebDataset
-from dataset.mnist_dataset import MnistDataset
 from models.vqvae import VQVAE
 from models.vae import VAE
 from dataset.LucieDataset import LucieDataset
@@ -36,7 +32,7 @@ def infer(args):
     autoencoder_config = config['autoencoder_params']
     train_config = config['train_params']
 
-    results_dir = train_config['load_dir']  # Define the results directory
+    results_dir = train_config['results_dir']  # Define the results directory
     # Ensure the 'results' directory exists
     if not os.path.exists(results_dir):
         os.mkdir(results_dir)
@@ -78,6 +74,10 @@ def infer(args):
                              output_normalization_file=dataset_config['output_normalization_dir'],
                              lucie_file_path=dataset_config['lucie_file_path'],
                              lucie_vars=input_vars) 
+    if dataset_config['land_sea_mask'] == 1:
+        lsm = torch.tensor(np.load(dataset_config['land_sea_mask_dir'])['land_sea_mask']).unsqueeze(0).unsqueeze(1)
+    else:
+        lsm = None
     # dataset = LucieDataset(file_path=dataset_config['input_data_dir'],
     #                        input_vars=input_vars,
     #                         normalize=True,
@@ -89,7 +89,7 @@ def infer(args):
                              shuffle=False, 
                              num_workers=2)
 
-    model = VAE(input_channels=dataset_config['input_channels'],
+    model = VAE(input_channels=dataset_config['input_channels']+dataset_config['land_sea_mask'],
                 output_channels=dataset_config['output_channels'],
                 model_config=autoencoder_config)
     model = DataParallel(model)
@@ -97,9 +97,8 @@ def infer(args):
 
     # load_dir = os.path.join(task_dir, train_config['vae_autoencoder_ckpt_name'])
     # load_dir = '/glade/derecho/scratch/mdarman/lucie/results/vae_concat_v0/checkpoints/vae_autoencoder_ckpt_epoch_40.pth'
-    load_dir = '/media/volume/moein-storage-1/lucie/results/vae_concat_v1/checkpoints/latest_autoencoder.pth'
+    load_dir = '/media/volume/moein-storage-1/lucie/results/vae_concat_v4/checkpoints/latest_autoencoder.pth'
     
-
     model.load_state_dict(torch.load(load_dir, map_location=device, weights_only=True)['model_state_dict'])
     model.eval()
     step = 0
@@ -110,16 +109,31 @@ def infer(args):
             lucie = lucie.float().to(device)
             lres = lres.float().to(device)
             hres = hres.float().to(device)
-                        
-            decoded_output, _ = model(lres)
-            decoded_output = decoded_output[:, :, :-7, :] 
+            lsm_expanded = None
+            if lsm is not None:
+                lsm = lsm.float().to(device)
+                lsm_expanded = lsm.expand(lres.shape[0], -1, -1, -1)  # Shape: (batch_size, 1, 721, 1440)
 
-            lucie_zero_shot, _ = model(lucie)
-            lucie_zero_shot = lucie_zero_shot[:, :, :-7, :]
+            lres_upsampled = F.interpolate(lres, size=(721,1440), mode='bilinear', align_corners=True)
+            lucie_upsampled = F.interpolate(lucie, size=(721,1440), mode='bilinear', align_corners=True)
+
+            decoded_output, _ = model(lres_upsampled, lsm_expanded)
+            decoded_output = decoded_output[:,:,3:3+721,:]
+            decoded_output[:, 0] += lres_upsampled[:, 0] 
+            decoded_output[:, -1] += lres_upsampled[:, -1]
+            # decoded_output = decoded_output[:, :, :-7, :] 
+
+            lucie_zero_shot, _ = model(lucie_upsampled, lsm_expanded)
+            lucie_zero_shot = lucie_zero_shot[:,:,3:3+721,:]
+            lucie_zero_shot[:, 0] += lucie_upsampled[:, 0] 
+            lucie_zero_shot[:, -1] += lucie_upsampled[:, -1]
+            # lucie_zero_shot = lucie_zero_shot[:, :, :-7, :]
 
             # Convert tensors to numpy arrays
-            lres_interp_numpy = F.interpolate(lres, size=(721,1440), mode='bilinear', align_corners=True).cpu().numpy()
-            lucie_interp_numpy = F.interpolate(lucie, size=(721,1440), mode='bilinear', align_corners=True).cpu().numpy()
+            # lres_interp_numpy = F.interpolate(lres, size=(721,1440), mode='bilinear', align_corners=True).cpu().numpy()
+            # lucie_interp_numpy = F.interpolate(lucie, size=(721,1440), mode='bilinear', align_corners=True).cpu().numpy()
+            lres_interp_numpy = lres_upsampled.cpu().numpy()
+            lucie_interp_numpy = lucie_upsampled.cpu().numpy()
             lucie_numpy = lucie.cpu().numpy()
             lres_numpy = lres.cpu().numpy()            # Shape: [batch_size, channels, height, width]
             hres_numpy = hres.cpu().numpy()            # Shape: [batch_size, channels, height, width]
@@ -134,7 +148,7 @@ def infer(args):
                      hres=hres_numpy, 
                      output=decoded_outputs_numpy, 
                      lucie=lucie_numpy,
-                     lucie_interp=lucie_interp_numpy, 
+                     lucie_interp=lucie_interp_numpy,
                      lucie_zero_shot=lucie_zero_shot)
             print(f'Saved {step}.npz')
   

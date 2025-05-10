@@ -1,1 +1,34 @@
+# Ignore Python compiled files
+__pycache__/
 *.pyc
+*.pyo
+
+# Ignore environment files
+.env
+.venv/
+
+# Ignore logs
+logs/
+*.log
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore VS Code settings
+.vscode/
+
+.h5
+
+# Outputs
+ERA5_DDPM*
+
+# Numpy files
+*.npy
+*.npz
+
+# 
+metrics.ipynb
+
+
+
