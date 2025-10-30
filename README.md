@@ -12,12 +12,12 @@ The project focuses on downscaling low-resolution climate data to high-resolutio
 
 ## Features
 
-- 🌡️ Multi-variable climate modeling (temperature, precipitation, u-wind, v-wind)
-- 🔬 Two-stage pipeline: FNO + Diffusion models
-- 🚀 Distributed training on HPC systems with SLURM
-- 📊 Comprehensive diagnostic and visualization tools
-- ⚙️ YAML-based configuration system
-- 🔄 Support for model retraining and ensemble generation
+-  Multi-variable climate modeling (temperature, precipitation, u-wind, v-wind)
+-  Two-stage pipeline: FNO + Diffusion models
+-  Distributed training on HPC systems with SLURM
+-  Comprehensive diagnostic and visualization tools
+-  YAML-based configuration system
+-  Support for model retraining and ensemble generation
 
 ## Repository Structure
 
