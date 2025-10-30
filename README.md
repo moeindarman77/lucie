@@ -1,10 +1,10 @@
-# LUCIE - Downscaling Project
+# LUCIE-DS - Downscaling Project
 
-A PyTorch-based research project for climate data super-resolution using diffusion models and Fourier Neural Operators (FNOs). LUCIE implements stable diffusion models for climate data downscaling and super-resolution, working with ERA5 climate datasets.
+A PyTorch-based research project for climate data super-resolution using diffusion models and Fourier Neural Operators (FNOs). LUCIE-DS implements stable diffusion models for climate data downscaling and super-resolution, working with ERA5 climate datasets.
 
 ## Overview
 
-LUCIE combines two powerful approaches for climate modeling:
+LUCIE-DS-DS combines two powerful approaches for climate modeling:
 - **Fourier Neural Operators (FNO)**: For initial super-resolution of climate variables
 - **Latent Diffusion Models (DDPM)**: For refinement and uncertainty quantification
 
@@ -22,10 +22,10 @@ The project focuses on downscaling low-resolution climate data to high-resolutio
 ## Repository Structure
 
 ```
-lucie/
+LUCIE-DS/
 ├── src/
 │   ├── models/          # Model architectures (FNO, U-Net, VAE, etc.)
-│   ├── dataset/         # Dataset loaders for ERA5 and LUCIE data
+│   ├── dataset/         # Dataset loaders for ERA5 and LUCIE-DS data
 │   ├── tools/           # Training and sampling scripts
 │   ├── config/          # YAML configuration files
 │   ├── utils/           # Utility functions and helpers
@@ -61,18 +61,18 @@ lucie/
 
 ```bash
 # Clone the repository
-git clone https://github.com/moeindarman77/lucie.git
-cd lucie
+git clone https://github.com/moeindarman77/LUCIE-DS.git
+cd LUCIE-DS
 
 # Create conda environment
-conda create -n lucie python=3.9
-conda activate lucie
+conda create -n LUCIE-DS python=3.9
+conda activate LUCIE-DS
 
 # Install dependencies
 pip install -r src/requirements.txt
 
 # Set Python path
-export PYTHONPATH="${PYTHONPATH}:/path/to/lucie/src"
+export PYTHONPATH="${PYTHONPATH}:/path/to/LUCIE-DS/src"
 ```
 
 ### On NCAR Derecho
@@ -83,7 +83,7 @@ module load conda
 conda activate jax
 
 # Set Python path
-export PYTHONPATH="/glade/derecho/scratch/mdarman/lucie/src"
+export PYTHONPATH="/glade/derecho/scratch/mdarman/LUCIE-DS/src"
 ```
 
 ## Quick Start
@@ -116,8 +116,8 @@ qsub jobs/training/job_array.slurm
 # Sample from trained model
 python tools/sample_ddpm_final_v2.py --config config/ERA5_config_final_v2.yaml
 
-# Sample for 10-year LUCIE evaluation
-python tools/sample_ddpm_lucie_10yr.py --config config/ERA5_config_lucie_10yr.yaml
+# Sample for 10-year LUCIE-DS evaluation
+python tools/sample_ddpm_LUCIE-DS_10yr.py --config config/ERA5_config_LUCIE-DS_10yr.yaml
 ```
 
 ### 3. Data Processing
@@ -136,7 +136,7 @@ All experiments are configured via YAML files in `src/config/`. Key configuratio
 
 - `ERA5_config_final_v2.yaml` - Main diffusion model configuration
 - `ERA5_config_fno.yaml` - FNO model configuration
-- `ERA5_config_lucie_10yr.yaml` - 10-year sampling configuration
+- `ERA5_config_LUCIE-DS_10yr.yaml` - 10-year sampling configuration
 - `ERA5_config_normalized_fno.yaml` - Normalized FNO setup
 
 ### Key Configuration Parameters
@@ -214,7 +214,7 @@ Detailed documentation is available in the `docs/` directory:
 
 - [Production Run Instructions](docs/PRODUCTION_RUN_INSTRUCTIONS.md)
 - [Normalization Data Flow](docs/NORMALIZATION_DATA_FLOW.md)
-- [10-Year Sampling README](docs/LUCIE_10YR_SAMPLING_README.md)
+- [10-Year Sampling README](docs/LUCIE-DS_10YR_SAMPLING_README.md)
 - [VWind Bias Root Cause Analysis](docs/VWIND_BIAS_ROOT_CAUSE.md)
 
 ## Scripts
@@ -255,14 +255,14 @@ results/
 
 ## Citation
 
-If you use LUCIE in your research, please cite:
+If you use LUCIE-DS in your research, please cite:
 
 ```bibtex
-@software{lucie2025,
-  title={LUCIE: Learning with Unified Climate Intelligence Engine},
+@software{LUCIE-DS2025,
+  title={LUCIE-DS: Learning with Unified Climate Intelligence Engine},
   author={Darman, Moein},
   year={2025},
-  url={https://github.com/moeindarman77/lucie}
+  url={https://github.com/moeindarman77/LUCIE-DS}
 }
 ```
 
