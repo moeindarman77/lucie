@@ -62,7 +62,7 @@ LUCIE-DS/
 ```bash
 # Clone the repository
 git clone https://github.com/moeindarman77/LUCIE-DS.git
-cd LUCIE-DS
+cd lucie
 
 # Create conda environment
 conda create -n LUCIE-DS python=3.9
