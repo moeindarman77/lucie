@@ -1,4 +1,4 @@
-# LUCIE - Learning with Unified Climate Intelligence Engine
+# LUCIE - Downscaling Project
 
 A PyTorch-based research project for climate data super-resolution using diffusion models and Fourier Neural Operators (FNOs). LUCIE implements stable diffusion models for climate data downscaling and super-resolution, working with ERA5 climate datasets.
 
