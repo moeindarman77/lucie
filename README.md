@@ -4,7 +4,7 @@ A PyTorch-based research project for climate data super-resolution using diffusi
 
 ## Overview
 
-LUCIE-DS-DS combines two powerful approaches for climate modeling:
+LUCIE-DS combines two powerful approaches for climate modeling:
 - **Fourier Neural Operators (FNO)**: For initial super-resolution of climate variables
 - **Denoising Diffusion Probabilistic Models (DDPM)**: For refinement
 
@@ -61,18 +61,18 @@ LUCIE-DS/
 
 ```bash
 # Clone the repository
-git clone https://github.com/moeindarman77/LUCIE-DS.git
+git clone https://github.com/moeindarman77/lucie.git
 cd lucie
 
 # Create conda environment
-conda create -n LUCIE-DS python=3.9
-conda activate LUCIE-DS
+conda create -n lucie python=3.9
+conda activate lucie
 
 # Install dependencies
 pip install -r src/requirements.txt
 
 # Set Python path
-export PYTHONPATH="${PYTHONPATH}:/path/to/LUCIE-DS/src"
+export PYTHONPATH="${PYTHONPATH}:/path/to/lucie/src"
 ```
 
 ### On NCAR Derecho
@@ -83,7 +83,7 @@ module load conda
 conda activate jax
 
 # Set Python path
-export PYTHONPATH="/glade/derecho/scratch/mdarman/LUCIE-DS/src"
+export PYTHONPATH="/glade/derecho/scratch/mdarman/lucie/src"
 ```
 
 ## Quick Start
@@ -275,8 +275,3 @@ If you use LUCIE-DS in your research, please cite:
 For questions and support, please open an issue on GitHub or contact:
 - Moein Darman - [GitHub](https://github.com/moeindarman77)
 
-## Acknowledgments
-
-- NCAR's Derecho HPC system
-- ERA5 climate reanalysis dataset
-- PyTorch and the deep learning community
