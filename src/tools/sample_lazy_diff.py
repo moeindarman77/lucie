@@ -86,8 +86,8 @@ def sample(model, scheduler, train_config, diffusion_model_config,
         
     ims = x_0
     # Save the samples
-    if not os.path.exists(os.path.join(task_dir, 'samples_ddpm')):
-        os.mkdir(os.path.join(task_dir, 'samples_ddpm'))
+    if not os.path.exists(os.path.join(task_dir, 'samples_ddpm_test')):
+        os.mkdir(os.path.join(task_dir, 'samples_ddpm_test'))
 
     # Convert tensors to numpy arrays
     lres_numpy = lres.cpu().numpy()            # Shape: [batch_size, channels, height, width]
@@ -97,7 +97,7 @@ def sample(model, scheduler, train_config, diffusion_model_config,
     fno_output = fno_output.cpu().numpy()
 
     # Save to an npz file named with the index of the data loader
-    save_dir = os.path.join(task_dir,'samples_ddpm', f'{cond_data_index+1}.npz')
+    save_dir = os.path.join(task_dir,'samples_ddpm_test', f'{cond_data_index+1}.npz')
     np.savez(save_dir,
             lres=lres_numpy,
             lres_interp=lres_interp_numpy,

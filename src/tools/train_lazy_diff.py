@@ -194,7 +194,7 @@ def train(rank, world_size, args):
   
     # Define the path to your checkpoint file
     # resume_checkpoint = "/glade/derecho/scratch/mdarman/lucie/results/unet_final_v0/checkpoints/ckpt.pth"
-    resume_checkpoint = ''
+    resume_checkpoint = '/glade/derecho/scratch/mdarman/lucie/results/unet_final_v10/checkpoints/best_ldm.pth'
     start_epoch = 0  # Default starting epoch
 
     if os.path.exists(resume_checkpoint):
@@ -231,7 +231,7 @@ def train(rank, world_size, args):
 
             # Upsample low-resolution input
             lres_upsampled = F.interpolate(lres, size=(721,1440), mode='bicubic', align_corners=True)
-            lres_upsampled[:,5] = hres[:,5]
+            # lres_upsampled[:,5] = hres[:,5]
 
             fno_output = SR_model(lres_upsampled) #output_vars = ["2m_temperature","u_component_of_wind_83","v_component_of_wind_83","total_precipitation_6hr",]
 
@@ -247,9 +247,9 @@ def train(rank, world_size, args):
             noise = torch.randn_like(hres).to(rank)
             
             # Sample timestep
-            t = torch.randint(0, diffusion_config['num_timesteps'], (hres.shape[0],)).to(rank)
-            # t = torch.randint(diffusion_config['num_timesteps']-1, diffusion_config['num_timesteps'], (hres.shape[0],)).to(rank)
-            
+            t = torch.randint(0, diffusion_config['num_timesteps'], (hres.shape[0],)).to(rank) # For the one with random timesteps
+            # t = torch.randint(diffusion_config['num_timesteps']-1, diffusion_config['num_timesteps'], (hres.shape[0],)).to(rank) # For the one with fixed timesteps
+             
             # Add noise to images according to timestep
             noisy_im = scheduler.add_noise(hres, noise, t)
 

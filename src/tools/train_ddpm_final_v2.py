@@ -148,7 +148,7 @@ def train(rank, world_size, args):
                             output_normalization_file=dataset_config['output_normalization_dir'],
                             cache_file=dataset_config['cache_file'],
                             force_recompute=dataset_config['force_recompute']
-                            )
+                            )    
     logging.info("Dataset loaded.")
 
     # Create DataLoader
@@ -169,7 +169,7 @@ def train(rank, world_size, args):
     # # move the model to the device
     SR_model = create_model(SR_model, rank)
     SR_model.eval()
-    SR_model_load_dir = "/glade/derecho/scratch/mdarman/lucie/results/fno_final_v2/checkpoints/best_fno.pth"
+    SR_model_load_dir = "/glade/derecho/scratch/mdarman/lucie/results/fno_final_v1/checkpoints/best_fno.pth"
     # checkpoint = torch.load(SR_model_load_dir)
     checkpoint = torch.load(SR_model_load_dir, map_location=lambda storage, loc: storage.cuda(rank), weights_only=True)
     SR_model.module.load_state_dict(checkpoint['model_state_dict'])
@@ -193,7 +193,7 @@ def train(rank, world_size, args):
   
     # Define the path to your checkpoint file
     # resume_checkpoint = "/glade/derecho/scratch/mdarman/lucie/results/unet_final_v0/checkpoints/ckpt.pth"
-    resume_checkpoint = '/glade/derecho/scratch/mdarman/lucie/results/unet_final_v9/checkpoints/best_ldm_so_far_v2.pth'
+    resume_checkpoint = '/glade/derecho/scratch/mdarman/lucie/results/unet_final_v10/checkpoints/best_ldm_so_far_v3.pth'
     start_epoch = 0  # Default starting epoch
 
     if os.path.exists(resume_checkpoint):
@@ -229,11 +229,11 @@ def train(rank, world_size, args):
             lres, hres = lres.float().to(rank), hres.float().to(rank)
 
             # print(lres.mean(axis=(0,2,3)), lres.std(axis=(0,2,3)))
-            print(hres.mean(axis=(0,2,3)), hres.std(axis=(0,2,3)))
+            # print(hres.mean(axis=(0,2,3)), hres.std(axis=(0,2,3)))
 
             # Upsample low-resolution input
             lres_upsampled = F.interpolate(lres, size=(721,1440), mode='bicubic', align_corners=True)
-            lres_upsampled[:,5] = hres[:,5]
+            # lres_upsampled[:,5] = hres[:,5]
 
             fno_output = SR_model(lres_upsampled) #output_vars = ["2m_temperature","u_component_of_wind_83","v_component_of_wind_83","total_precipitation_6hr",]
 

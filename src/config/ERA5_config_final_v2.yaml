@@ -1,8 +1,8 @@
 dataset_params:
-  input_data_dir: '/glade/derecho/scratch/asheshc/ERA5_t30/train'
+  input_data_dir: '/glade/derecho/scratch/mdarman/ERA5_t30/test'
   output_data_dir: '/glade/derecho/scratch/mdarman/ERA5_hr_haiwen/data'
-  year_range_start: 2000
-  year_range_end: 2009
+  year_range_start: 2010
+  year_range_end: 2018
   normalize: True
   input_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_lr_2000_2009_updated.npz'
   output_normalization_dir: '/glade/derecho/scratch/mdarman/lucie/stats_hr_2000_2009_updated.npz'
@@ -54,7 +54,7 @@ train_params:
   fno_epochs: 100  # Number of epochs for training the FNO model
 
   # Learning rates for different models
-  ldm_lr: 0.0001  # Learning rate for the latent diffusion model (LDM)
+  ldm_lr: 0.00001  # Learning rate for the latent diffusion model (LDM)
   fno_lr: 0.001  # Learning rate for the FNO model
 
   # Scheduler settings for learning rate decay

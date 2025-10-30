@@ -31,14 +31,13 @@ class ClimateDataset_v2(Dataset):
             self.hr_files = [f for f in self.hr_files if start_year <= int(os.path.basename(f).split('_')[0]) <= end_year]
 
         # Adjust LR files to every 6th file to align with HR files
-        self.lr_files_six_hourly = self.lr_files[::6]
-        
-        assert len(self.hr_files) == len(self.lr_files_six_hourly), \
-            "Mismatch between high-resolution and low-resolution timesteps."
+        self.lr_files_six_hourly = self.lr_files[::6]        
 
         # Load or compute valid file lists
         self.load_or_compute_valid_files()
 
+        assert len(self.hr_files) == len(self.lr_files_six_hourly), \
+            "Mismatch between high-resolution and low-resolution timesteps."
         print(f"Found {len(self.hr_files)} valid files.")
         print(f"Found {len(self.lr_files_six_hourly)} valid files.")
 

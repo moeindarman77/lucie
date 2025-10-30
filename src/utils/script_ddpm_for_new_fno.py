@@ -24,7 +24,7 @@ args = parser.parse_args()
 task_name = args.task_name
 num_samples_to_be_used = args.num_samples
 results_dir = f"/glade/derecho/scratch/mdarman/lucie/results/{task_name}"
-output_dir = os.path.join(results_dir, "results_ddpm")
+output_dir = os.path.join(results_dir, "results_ddpm_test")
 os.makedirs(output_dir, exist_ok=True)
 
 # Setup logging
@@ -120,7 +120,7 @@ def compute_metrics(pred, target):
 logging.info("Starting data processing...")
 
 # Load example data for shape reference
-example_file = os.path.join(results_dir, "samples_ddpm/1.npz")
+example_file = os.path.join(results_dir, "samples_ddpm_test/1.npz")
 with np.load(example_file) as data:
     shapes = {key: data[key].shape for key in data.keys()}
 
@@ -130,12 +130,12 @@ sums = {key: np.zeros(shapes[key][1:], dtype=np.float32) for key in data_keys}
 counters = {key: 0 for key in data_keys}
 
 # Get the files in the samples directory and find the length of them
-files = sorted(os.listdir(os.path.join(results_dir, "samples_ddpm")))
+files = sorted(os.listdir(os.path.join(results_dir, "samples_ddpm_test")))
 files = files[:num_samples_to_be_used]
 # Aggregate data across samples
 for idx in tqdm(range(1, len(files) + 1)):
 # for idx in tqdm(range(3, 4)):
-    file_path = os.path.join(results_dir, f"samples_ddpm/{idx}.npz")
+    file_path = os.path.join(results_dir, f"samples_ddpm_test/{idx}.npz")
     if os.path.exists(file_path):
         with np.load(file_path) as data:
             for key in data_keys:

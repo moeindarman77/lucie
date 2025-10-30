@@ -9,8 +9,10 @@ def spectral_sqr_abs2(
     lambda_fft=0.5,
     lat_lon_bal=0.5,
     channels=[
-        ("channel_0", 0, 0.3),
-        ("channel_1", 1, 0.7),
+        ("channel_0", 0, 0.10),
+        ("channel_1", 1, 0.10),
+        ("channel_2", 2, 0.40),
+        ("channel_3", 3, 0.40),
     ],
     fft_loss_scale=1./110.
 ):

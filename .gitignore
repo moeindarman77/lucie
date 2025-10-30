@@ -18,19 +18,26 @@ Thumbs.db
 # Ignore VS Code settings
 .vscode/
 
-.h5
+*.h5
+*.hdf5
 
 # Outputs
 ERA5_DDPM*
+*.o*
 
 # Numpy files
 *.npy
 *.npz
 
-# 
+# Data files
+*.nc
+*.grib2
+core
+
+# Notebooks (results)
 metrics.ipynb
 
-
-
-*.nc
+# Results and outputs directories
+/results
+/outputs
 
