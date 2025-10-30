@@ -1,12 +1,12 @@
 # LUCIE-DS - Downscaling Project
 
-A PyTorch-based research project for climate data super-resolution using diffusion models and Fourier Neural Operators (FNOs). LUCIE-DS implements stable diffusion models for climate data downscaling and super-resolution, working with ERA5 climate datasets.
+A PyTorch-based research project for climate data super-resolution using diffusion models and Fourier Neural Operators (FNOs). LUCIE-DS implements DDPM for climate data downscaling and super-resolution, working with ERA5 climate datasets.
 
 ## Overview
 
 LUCIE-DS-DS combines two powerful approaches for climate modeling:
 - **Fourier Neural Operators (FNO)**: For initial super-resolution of climate variables
-- **Latent Diffusion Models (DDPM)**: For refinement and uncertainty quantification
+- **Denoising Diffusion Probabilistic Models (DDPM)**: For refinement
 
 The project focuses on downscaling low-resolution climate data to high-resolution predictions for multiple atmospheric variables including temperature, precipitation, and wind components.
 
